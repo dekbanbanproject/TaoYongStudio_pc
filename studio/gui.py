@@ -760,6 +760,25 @@ class StudioApp(tk.Tk):
         ttk.Radiobutton(mode_box, text="สร้างด้วย Google Flow (Cloud)", variable=self.anim_mode,
                         value="flow", command=self._on_anim_mode_changed).pack(anchor="w", pady=2)
 
+        # --- แพลตฟอร์มปลายทาง (Target Platform) ---
+        self.f_plat_sec = ttk.Frame(panel)
+        self.f_plat_sec.pack(fill="x", pady=(4, 6))
+        ttk.Label(self.f_plat_sec, text="แพลตฟอร์มปลายทาง:", font=(self.F, 10, "bold")).pack(anchor="w", pady=(0, 2))
+        self.anim_platform_val = tk.StringVar(value="TikTok (แนวตั้ง 9:16)")
+        self.anim_platform_cb = ttk.Combobox(self.f_plat_sec, textvariable=self.anim_platform_val, state="readonly",
+                                             values=[
+                                                 "TikTok (แนวตั้ง 9:16)",
+                                                 "YouTube แนวนอน (16:9)",
+                                                 "YouTube Shorts (แนวตั้ง 9:16)",
+                                                 "Facebook Page (แนวตั้ง 9:16)",
+                                                 "Facebook ส่วนตัว (แนวตั้ง 9:16)",
+                                                 "Shopee Video (แนวตั้ง 9:16)",
+                                             ])
+        self.anim_platform_cb.pack(fill="x", pady=(2, 2))
+        self.anim_platform_status_lbl = ttk.Label(self.f_plat_sec, text="", style="Muted.TLabel", wraplength=410)
+        self.anim_platform_status_lbl.pack(anchor="w")
+        self.anim_platform_cb.bind("<<ComboboxSelected>>", self._on_anim_platform_selected)
+
         # --- B. เลือกอุปกรณ์ ---
         self.f_device_sec = ttk.Frame(panel)
         self.f_device_sec.pack(fill="x", pady=(6, 8))
@@ -822,6 +841,7 @@ class StudioApp(tk.Tk):
 
         # Populate Hardware Telemetry
         self._populate_hardware_panel()
+        self._on_anim_platform_selected()
 
     def _populate_hardware_panel(self):
         try:
@@ -857,17 +877,77 @@ class StudioApp(tk.Tk):
         except Exception as e:
             self.anim_device_status_lbl.configure(text=f"ตรวจฮาร์ดแวร์ขัดข้อง: {e}")
 
+    def _get_selected_platform_and_format(self):
+        raw = self.anim_platform_val.get() if hasattr(self, "anim_platform_val") else "TikTok"
+        if "Shorts" in raw:
+            return "youtube", "vertical"
+        elif "YouTube" in raw:
+            return "youtube", "horizontal"
+        elif "Page" in raw:
+            return "facebook_page", "vertical"
+        elif "ส่วนตัว" in raw:
+            return "facebook_profile", "vertical"
+        elif "Shopee" in raw:
+            return "shopee", "vertical"
+        else:
+            return "tiktok", "vertical"
+
+    def _on_anim_platform_selected(self, event=None):
+        raw = self.anim_platform_val.get() if hasattr(self, "anim_platform_val") else "TikTok"
+        mode = self.anim_mode.get() if hasattr(self, "anim_mode") else "local"
+        plat_name = raw.split("(")[0].strip()
+
+        if "TikTok" in raw:
+            desc = "วิดีโอแนวตั้ง 9:16 สำหรับ TikTok"
+            aspect = "9:16 แนวตั้ง (TikTok / Shorts)"
+        elif "Shorts" in raw:
+            desc = "วิดีโอสั้นแนวตั้ง 9:16 สำหรับ YouTube Shorts"
+            aspect = "9:16 แนวตั้ง (TikTok / Shorts)"
+        elif "YouTube" in raw:
+            desc = "วิดีโอแนวนอน 16:9 สำหรับ YouTube มาตรฐาน"
+            aspect = "16:9 แนวนอน (YouTube)"
+        elif "Page" in raw:
+            desc = "วิดีโอแนวตั้ง 9:16 สำหรับ Facebook Page Reels"
+            aspect = "9:16 แนวตั้ง (TikTok / Shorts)"
+        elif "ส่วนตัว" in raw:
+            desc = "วิดีโอแนวตั้ง 9:16 สำหรับ Facebook Profile"
+            aspect = "9:16 แนวตั้ง (TikTok / Shorts)"
+        elif "Shopee" in raw:
+            desc = "วิดีโอแนวตั้ง 9:16 สำหรับ Shopee Video"
+            aspect = "9:16 แนวตั้ง (TikTok / Shorts)"
+        else:
+            desc = ""
+            aspect = "16:9 แนวนอน (YouTube)"
+
+        if mode == "flow":
+            self.anim_platform_status_lbl.configure(
+                text=f"Google Flow: จะส่งบทไปที่ Workspace ของ {plat_name} และเปิด Google Flow")
+            self.btn_render_clip.configure(text=f"✦  สร้างด้วย Google Flow ({plat_name})")
+        else:
+            self.anim_platform_status_lbl.configure(text=desc)
+            if hasattr(self, "anim_aspect_val") and aspect:
+                self.anim_aspect_val.set(aspect)
+
     def _on_anim_mode_changed(self):
         mode = self.anim_mode.get()
+        raw = self.anim_platform_val.get() if hasattr(self, "anim_platform_val") else "TikTok"
+        plat_name = raw.split("(")[0].strip()
+
         if mode == "flow":
-            self.anim_device_status_lbl.configure(
-                text="ระบบ Cloud: Google Flow จัดการ Generate แอนิเมชัน ไม่ใช้ทรัพยากรเครื่อง")
-            self.btn_render_clip.configure(text="✦  สร้างแอนิเมชันด้วย Google Flow")
-            self.anim_device_cb.configure(state="disabled")
-            self.anim_engine_cb.configure(state="disabled")
-            self.anim_res_cb.configure(state="disabled")
-            self.anim_fps_cb.configure(state="disabled")
+            # Flow mode: Hide hardware / engine / resolution sections that don't apply to cloud
+            self.f_device_sec.pack_forget()
+            self.f_type_sec.pack_forget()
+            self.f_qual_sec.pack_forget()
+
+            self.anim_platform_status_lbl.configure(
+                text=f"ระบบ Cloud: Google Flow จัดการ Generate แอนิเมชัน • จะส่งบทไปที่ Workspace ของ {plat_name}")
+            self.btn_render_clip.configure(text=f"✦  สร้างด้วย Google Flow ({plat_name})")
         else:
+            # Local mode: Re-pack hardware / engine / resolution sections
+            self.f_device_sec.pack(fill="x", pady=(6, 8))
+            self.f_type_sec.pack(fill="x", pady=(6, 8))
+            self.f_qual_sec.pack(fill="x", pady=(6, 4))
+
             self.btn_render_clip.configure(text="▶  สร้างคลิปในเครื่อง (Local Animation)")
             self.anim_device_cb.configure(state="readonly")
             self.anim_engine_cb.configure(state="readonly")
@@ -875,6 +955,7 @@ class StudioApp(tk.Tk):
             self.anim_fps_cb.configure(state="readonly")
             self._on_anim_device_selected()
             self._on_anim_engine_selected()
+            self._on_anim_platform_selected()
 
     def _on_anim_device_selected(self, event=None):
         label = self.anim_device_val.get()
@@ -925,9 +1006,11 @@ class StudioApp(tk.Tk):
         if sc is None or errors:
             messagebox.showwarning("Google Flow", "บทนี้ยังมีจุดผิด กรุณาแก้ไขบทก่อน")
             return
-        fmt = "horizontal" if "horizontal" in sc.get("formats", []) else "vertical"
-        platform = "youtube" if fmt == "horizontal" else "tiktok"
-        ui = self.platform_ui[platform]
+        platform, fmt = self._get_selected_platform_and_format()
+        ui = self.platform_ui.get(platform)
+        if not ui:
+            messagebox.showerror("Google Flow", f"ไม่พบ Workspace ของแพลตฟอร์ม {platform}")
+            return
         choice = next((name for name, path in ui["script_map"].items() if path == script_path), None)
         if choice is None:
             self.refresh_platform_workspaces()
