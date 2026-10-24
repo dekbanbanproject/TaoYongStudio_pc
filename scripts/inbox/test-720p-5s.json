@@ -1,0 +1,44 @@
+{
+  "id": "test-720p-5s",
+  "title": "ทดสอบเรนเดอร์ 720p 5 วินาที",
+  "description": "คลิปทดสอบประสิทธิภาพการเรนเดอร์ 720p บน Local Hardware V1",
+  "tags": [
+    "ทดสอบ",
+    "720p",
+    "LocalStudio"
+  ],
+  "genre": "ทดสอบ",
+  "characters": [
+    "bunny",
+    "chick"
+  ],
+  "music_seed": 7205,
+  "scenes": [
+    {
+      "background": "meadow",
+      "cast": [
+        "bunny",
+        "chick"
+      ],
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "สวัสดีจ้ะ นี่คือการทดสอบ 720p",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "ภาพสวยและคมชัดมากเลย",
+          "action": "jump",
+          "card": "720p HD",
+          "items": {
+            "kind": "star",
+            "count": 3,
+            "color": "yellow"
+          }
+        }
+      ]
+    }
+  ]
+}

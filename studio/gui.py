@@ -676,25 +676,200 @@ class StudioApp(tk.Tk):
         self.tv_s.bind("<<TreeviewSelect>>", lambda e: self.show_script())
         self.tv_s.bind("<Double-1>", lambda e: self.edit_script())
 
-        right = ttk.Frame(t, style="Card.TFrame", padding=14, width=340)
+        right = ttk.Frame(t, style="Card.TFrame", padding=14, width=480)
         right.pack(side="right", fill="y", padx=(12, 0))
         right.pack_propagate(False)
+
         btns = ttk.Frame(right, style="Card.TFrame")
         btns.pack(side="bottom", fill="x")
-        ttk.Label(right, text="รายละเอียด", style="H2.TLabel").pack(anchor="w")
-        self.s_preview = tk.Label(right, bg=CARD)
-        self.s_preview.pack(pady=8)
-        self.s_info = ttk.Label(right, text="เลือกบททางซ้าย", style="Muted.TLabel", wraplength=300,
+
+        # Scrollable container for script preview and animation studio tools
+        canvas = tk.Canvas(right, bg=CARD, highlightthickness=0)
+        scroll = ttk.Scrollbar(right, orient="vertical", command=canvas.yview)
+        scroll_content = ttk.Frame(canvas, style="Card.TFrame")
+        win_id = canvas.create_window((0, 0), window=scroll_content, anchor="nw")
+
+        scroll_content.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win_id, width=e.width))
+        canvas.configure(yscrollcommand=scroll.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+        # Mousewheel scroll support
+        def _on_right_wheel(e):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind("<MouseWheel>", _on_right_wheel)
+
+        ttk.Label(scroll_content, text="รายละเอียดบท", style="H2.TLabel").pack(anchor="w")
+        self.s_preview = tk.Label(scroll_content, bg=CARD)
+        self.s_preview.pack(pady=6)
+        self.s_info = ttk.Label(scroll_content, text="เลือกบททางซ้าย", style="Muted.TLabel", wraplength=420,
                                 justify="left")
-        self.s_info.pack(anchor="w", fill="x")
-        ttk.Button(btns, text="▶  สร้างคลิปเรื่องนี้", style="Accent.TButton",
-                   command=self.render_selected).pack(fill="x", pady=3)
+        self.s_info.pack(anchor="w", fill="x", pady=(0, 6))
+
+        # ==============================================================
+        # Panel: เครื่องมือสร้างแอนิเมชัน (Local GPU Animation Studio V1)
+        # ==============================================================
+        self._build_animation_tools_panel(scroll_content)
+
+        # Action Buttons
+        self.btn_render_clip = ttk.Button(btns, text="▶  สร้างคลิปเรื่องนี้", style="Accent.TButton",
+                                          command=self.render_selected)
+        self.btn_render_clip.pack(fill="x", pady=3)
         ttk.Button(btns, text="✦  สร้างแอนิเมชันด้วย Google Flow",
                    command=self.send_script_to_flow).pack(fill="x", pady=3)
         ttk.Button(btns, text="ดูภาพตัวอย่าง", command=self.preview_script).pack(fill="x", pady=3)
         ttk.Button(btns, text="แก้ไขบท (Notepad)", command=self.edit_script).pack(fill="x", pady=3)
         ttk.Button(btns, text="ลบบทที่เลือก", style="Danger.TButton", command=self.remove_scripts).pack(
             fill="x", pady=3)
+
+    def _build_animation_tools_panel(self, parent):
+        panel = ttk.LabelFrame(parent, text=" เครื่องมือสร้างแอนิเมชัน ", padding=12)
+        panel.pack(fill="x", pady=(4, 8))
+
+        # --- A. เลือกวิธีสร้าง ---
+        row_mode = ttk.Frame(panel)
+        row_mode.pack(fill="x", pady=(2, 6))
+        ttk.Label(row_mode, text="A. วิธีสร้าง:", font=(self.F, 10, "bold")).pack(anchor="w", pady=(0, 3))
+        self.anim_mode = tk.StringVar(value="local")
+        mode_box = ttk.Frame(row_mode)
+        mode_box.pack(fill="x")
+        ttk.Radiobutton(mode_box, text="สร้างในเครื่อง (Local Animation)", variable=self.anim_mode,
+                        value="local", command=self._on_anim_mode_changed).pack(anchor="w", pady=2)
+        ttk.Radiobutton(mode_box, text="สร้างด้วย Google Flow (Cloud)", variable=self.anim_mode,
+                        value="flow", command=self._on_anim_mode_changed).pack(anchor="w", pady=2)
+
+        # --- B. เลือกอุปกรณ์ ---
+        self.f_device_sec = ttk.Frame(panel)
+        self.f_device_sec.pack(fill="x", pady=(6, 8))
+        ttk.Label(self.f_device_sec, text="B. อุปกรณ์ประมวลผล (Hardware):", font=(self.F, 10, "bold")).pack(anchor="w")
+        self.anim_device_val = tk.StringVar()
+        self.anim_device_cb = ttk.Combobox(self.f_device_sec, textvariable=self.anim_device_val, state="readonly")
+        self.anim_device_cb.pack(fill="x", pady=(3, 2))
+        self.anim_device_status_lbl = ttk.Label(self.f_device_sec, text="", style="Muted.TLabel", wraplength=410)
+        self.anim_device_status_lbl.pack(anchor="w")
+        self.anim_device_cb.bind("<<ComboboxSelected>>", self._on_anim_device_selected)
+
+        # --- C. เลือกประเภทแอนิเมชัน ---
+        self.f_type_sec = ttk.Frame(panel)
+        self.f_type_sec.pack(fill="x", pady=(6, 8))
+        ttk.Label(self.f_type_sec, text="C. ประเภทแอนิเมชัน (Engine):", font=(self.F, 10, "bold")).pack(anchor="w")
+        self.anim_engine_val = tk.StringVar()
+        self.anim_engine_cb = ttk.Combobox(self.f_type_sec, textvariable=self.anim_engine_val, state="readonly")
+        self.anim_engine_cb.pack(fill="x", pady=(3, 2))
+        self.anim_engine_status_lbl = ttk.Label(self.f_type_sec, text="", style="Muted.TLabel", wraplength=410)
+        self.anim_engine_status_lbl.pack(anchor="w")
+        self.anim_engine_cb.bind("<<ComboboxSelected>>", self._on_anim_engine_selected)
+
+        # --- D. เลือกคุณภาพวิดีโอ ---
+        self.f_qual_sec = ttk.Frame(panel)
+        self.f_qual_sec.pack(fill="x", pady=(6, 4))
+        ttk.Label(self.f_qual_sec, text="D. คุณภาพวิดีโอ (Quality & Format):", font=(self.F, 10, "bold")).pack(anchor="w", pady=(0, 4))
+
+        row_res_fps = ttk.Frame(self.f_qual_sec)
+        row_res_fps.pack(fill="x", pady=2)
+        row_res_fps.columnconfigure(0, weight=1, uniform="qual_col")
+        row_res_fps.columnconfigure(1, weight=1, uniform="qual_col")
+
+        # Resolution
+        box_res = ttk.Frame(row_res_fps)
+        box_res.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        ttk.Label(box_res, text="ความละเอียด:", style="Muted.TLabel").pack(anchor="w")
+        self.anim_res_val = tk.StringVar(value="1080p (Full HD)")
+        self.anim_res_cb = ttk.Combobox(box_res, textvariable=self.anim_res_val, state="readonly",
+                                        values=["1080p (Full HD)", "720p (HD)", "480p (SD)", "4K (Ultra HD)"])
+        self.anim_res_cb.pack(fill="x")
+
+        # FPS
+        box_fps = ttk.Frame(row_res_fps)
+        box_fps.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        ttk.Label(box_fps, text="อัตราเฟรม (FPS):", style="Muted.TLabel").pack(anchor="w")
+        self.anim_fps_val = tk.StringVar(value="24 FPS (แอนิเมชันมาตรฐาน)")
+        self.anim_fps_cb = ttk.Combobox(box_fps, textvariable=self.anim_fps_val, state="readonly",
+                                        values=["24 FPS (แอนิเมชันมาตรฐาน)", "30 FPS (ลื่นไหล)", "12 FPS (คลาสสิก)"])
+        self.anim_fps_cb.pack(fill="x")
+
+        # Aspect Ratio
+        box_aspect = ttk.Frame(self.f_qual_sec)
+        box_aspect.pack(fill="x", pady=(4, 2))
+        ttk.Label(box_aspect, text="รูปแบบภาพ (Aspect Ratio):", style="Muted.TLabel").pack(anchor="w")
+        self.anim_aspect_val = tk.StringVar(value="16:9 แนวนอน (YouTube)")
+        self.anim_aspect_cb = ttk.Combobox(box_aspect, textvariable=self.anim_aspect_val, state="readonly",
+                                           values=["16:9 แนวนอน (YouTube)", "9:16 แนวตั้ง (TikTok / Shorts)",
+                                                   "1:1 สี่เหลี่ยมจัตุรัส", "ทั้งสองแบบ (16:9 + 9:16)"])
+        self.anim_aspect_cb.pack(fill="x")
+
+        # Populate Hardware Telemetry
+        self._populate_hardware_panel()
+
+    def _populate_hardware_panel(self):
+        try:
+            from . import hardware
+            hw = hardware.detect_hardware()
+            self._hw_info = hw
+            devices = hw.get("devices", [])
+            self._anim_device_map = {}
+            dev_labels = []
+            for d in devices:
+                label = f"{d['label']} — {d['status'].split('(')[0].strip()}"
+                self._anim_device_map[label] = d
+                dev_labels.append(label)
+
+            self.anim_device_cb.configure(values=dev_labels)
+            if dev_labels:
+                self.anim_device_cb.current(0)
+                self._on_anim_device_selected()
+
+            # Engine list
+            engines = hw.get("engines", {})
+            self._anim_engine_map = {}
+            eng_labels = []
+            for k, e in engines.items():
+                label = f"{e['name']} — {e['status'].split('(')[0].strip()}"
+                self._anim_engine_map[label] = (k, e)
+                eng_labels.append(label)
+
+            self.anim_engine_cb.configure(values=eng_labels)
+            if eng_labels:
+                self.anim_engine_cb.current(0)
+                self._on_anim_engine_selected()
+        except Exception as e:
+            self.anim_device_status_lbl.configure(text=f"ตรวจฮาร์ดแวร์ขัดข้อง: {e}")
+
+    def _on_anim_mode_changed(self):
+        mode = self.anim_mode.get()
+        if mode == "flow":
+            self.anim_device_status_lbl.configure(
+                text="ระบบ Cloud: Google Flow จัดการ Generate แอนิเมชัน ไม่ใช้ทรัพยากรเครื่อง")
+            self.btn_render_clip.configure(text="✦  สร้างแอนิเมชันด้วย Google Flow")
+            self.anim_device_cb.configure(state="disabled")
+            self.anim_engine_cb.configure(state="disabled")
+            self.anim_res_cb.configure(state="disabled")
+            self.anim_fps_cb.configure(state="disabled")
+        else:
+            self.btn_render_clip.configure(text="▶  สร้างคลิปเรื่องนี้ (Local)")
+            self.anim_device_cb.configure(state="readonly")
+            self.anim_engine_cb.configure(state="readonly")
+            self.anim_res_cb.configure(state="readonly")
+            self.anim_fps_cb.configure(state="readonly")
+            self._on_anim_device_selected()
+            self._on_anim_engine_selected()
+
+    def _on_anim_device_selected(self, event=None):
+        label = self.anim_device_val.get()
+        dev = getattr(self, "_anim_device_map", {}).get(label)
+        if dev:
+            status_text = f"สถานะ: {dev.get('status')} | {dev.get('details', '')}"
+            self.anim_device_status_lbl.configure(text=status_text)
+
+    def _on_anim_engine_selected(self, event=None):
+        label = self.anim_engine_val.get()
+        item = getattr(self, "_anim_engine_map", {}).get(label)
+        if item:
+            k, e = item
+            self.anim_engine_status_lbl.configure(text=f"{e.get('description', '')} ({e.get('status')})")
 
     def _inbox(self):
         d = ROOT / "scripts" / "inbox"
@@ -2744,13 +2919,89 @@ class StudioApp(tk.Tk):
     def render_selected(self):
         sel = self._sel_scripts()
         if not sel:
+            messagebox.showinfo("สร้างคลิป", "เลือกบททางซ้าย 1 เรื่องก่อน")
             return
         if len(sel) > 1:
             messagebox.showinfo("สร้างคลิป", "เลือกทีละเรื่อง หรือกด \"สร้างคลิปจากบททั้งหมด\" ในหน้าหลัก")
             return
-        self._start(["render", str(sel[0])], "กำลังสร้างคลิป: %s" % sel[0].stem)
+
+        # Check mode: Flow vs Local
+        mode_val = self.anim_mode.get() if hasattr(self, "anim_mode") else "local"
+        if mode_val == "flow":
+            self.send_script_to_flow()
+            return
+
+        # Local Animation Mode
+        script_path = sel[0]
+        sc, errors, _ = self._script_cache.get(str(script_path), (None, ["อ่านบทไม่ได้"], []))
+        if sc is None or errors:
+            messagebox.showwarning("สร้างคลิป", "บทนี้ยังมีจุดผิด กรุณาแก้ไขบทก่อน:\n" + "\n".join(errors[:3]))
+            return
+
+        # Check engine compatibility
+        eng_raw = self.anim_engine_val.get() if hasattr(self, "anim_engine_val") else "2D Cartoon"
+        eng_type = "2d_cartoon"
+        if "Parallax" in eng_raw:
+            eng_type = "25d_parallax"
+        elif "Blender" in eng_raw:
+            messagebox.showwarning(
+                "เครื่องมือไม่พร้อม",
+                "ยังไม่ได้ติดตั้ง Blender บนเครื่องนี้\nกรุณาเลือก '2D Cartoon Animation' หรือ '2.5D Parallax Animation' ซึ่งพร้อมใช้งานในเครื่องทันที"
+            )
+            return
+        elif "AI" in eng_raw:
+            messagebox.showwarning(
+                "เครื่องมือไม่พร้อม",
+                "ยังไม่ได้ติดตั้ง ComfyUI หรือ CUDA GPU บนเครื่องนี้\nกรุณาเลือก '2D Cartoon Animation' หรือ '2.5D Parallax Animation' ซึ่งพร้อมใช้งานในเครื่องทันที"
+            )
+            return
+
+        # Parse resolution
+        res_raw = self.anim_res_val.get() if hasattr(self, "anim_res_val") else "1080p"
+        res_clean = "1080p"
+        if "720p" in res_raw:
+            res_clean = "720p"
+        elif "480p" in res_raw:
+            res_clean = "480p"
+        elif "4K" in res_raw:
+            res_clean = "4k"
+
+        # Parse fps
+        fps_raw = self.anim_fps_val.get() if hasattr(self, "anim_fps_val") else "24"
+        fps_clean = "24"
+        if "30" in fps_raw:
+            fps_clean = "30"
+        elif "12" in fps_raw:
+            fps_clean = "12"
+
+        # Parse format/aspect
+        aspect_raw = self.anim_aspect_val.get() if hasattr(self, "anim_aspect_val") else "16:9"
+        fmt_clean = "horizontal"
+        if "9:16" in aspect_raw:
+            fmt_clean = "vertical"
+        elif "1:1" in aspect_raw:
+            fmt_clean = "square"
+        elif "ทั้งสองแบบ" in aspect_raw:
+            fmt_clean = "both"
+
+        # Device & encoder
+        dev_label = self.anim_device_val.get() if hasattr(self, "anim_device_val") else ""
+        dev_info = getattr(self, "_anim_device_map", {}).get(dev_label, {})
+        enc_clean = dev_info.get("encoder", "auto")
+
+        args = ["render", str(script_path),
+                "--resolution", res_clean,
+                "--fps", str(fps_clean),
+                "--format", fmt_clean,
+                "--encoder", enc_clean,
+                "--engine", eng_type]
+        if dev_info.get("id"):
+            args += ["--device", dev_info["id"]]
+
+        title_msg = "กำลังสร้างคลิป (%s %s %s): %s" % (eng_type, res_clean, enc_clean, script_path.stem)
+        self._start(args, title_msg)
         self.job_total = 1
-        self._single = sel[0]
+        self._single = script_path
 
     def run_check(self):
         self._start(["check"], "กำลังตรวจความพร้อมเครื่อง")

@@ -36,7 +36,63 @@ LAYOUTS = {
         banner_y=330, banner_w=1200, banner_font=96,
         cloud_band=(60, 360), wm=(40, 36),
     ),
+    "square": dict(
+        W=1080, H=1080, ground=860,
+        char_h={1: 520, 2: 460, 3: 400, 4: 340},
+        xs={1: [0.5], 2: [0.26, 0.74], 3: [0.18, 0.5, 0.82], 4: [0.13, 0.38, 0.62, 0.87]},
+        card=(540, 210), card_max=(820, 260), card_font=140,
+        items_y=460, item_px=130, row_max=6,
+        sub_y=950, sub_w=940, sub_font=66,
+        banner_y=380, banner_w=920, banner_font=94,
+        cloud_band=(80, 420), wm=(40, 40),
+    ),
 }
+
+
+def get_scaled_layout(fmt, resolution="1080p"):
+    """Scale layout proportionally based on requested resolution (480p, 720p, 1080p, 4k)."""
+    base_fmt = fmt if fmt in LAYOUTS else "horizontal"
+    base = LAYOUTS[base_fmt]
+    scale_map = {
+        "480p": 480 / 1080,
+        "720p": 720 / 1080,
+        "1080p": 1.0,
+        "4k": 2.0,
+    }
+    scale = scale_map.get(str(resolution).lower(), 1.0)
+    if scale == 1.0:
+        d = dict(base)
+        d["scale"] = 1.0
+        return d
+
+    W = int(round(base["W"] * scale))
+    if W % 2 != 0:
+        W += 1
+    H = int(round(base["H"] * scale))
+    if H % 2 != 0:
+        H += 1
+
+    return dict(
+        W=W, H=H,
+        ground=int(base["ground"] * scale),
+        char_h={k: int(v * scale) for k, v in base["char_h"].items()},
+        xs=base["xs"],
+        card=(int(base["card"][0] * scale), int(base["card"][1] * scale)),
+        card_max=(int(base["card_max"][0] * scale), int(base["card_max"][1] * scale)),
+        card_font=max(16, int(base["card_font"] * scale)),
+        items_y=int(base["items_y"] * scale),
+        item_px=max(20, int(base["item_px"] * scale)),
+        row_max=base["row_max"],
+        sub_y=int(base["sub_y"] * scale),
+        sub_w=int(base["sub_w"] * scale),
+        sub_font=max(14, int(base["sub_font"] * scale)),
+        banner_y=int(base["banner_y"] * scale),
+        banner_w=int(base["banner_w"] * scale),
+        banner_font=max(18, int(base["banner_font"] * scale)),
+        cloud_band=(int(base["cloud_band"][0] * scale), int(base["cloud_band"][1] * scale)),
+        wm=(int(base["wm"][0] * scale), int(base["wm"][1] * scale)),
+        scale=scale,
+    )
 
 FONT = "fonts/Kanit-Bold.ttf"
 
@@ -79,12 +135,15 @@ class SceneT:
 
 
 class Episode:
-    def __init__(self, script, cfg, log=print):
+    def __init__(self, script, cfg, log=print, resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon"):
         self.s = script
         self.cfg = cfg
         self.log = log
         self.root = Path(cfg["_root"])
-        self.fps = int(cfg["video"]["fps"])
+        self.resolution = resolution or "1080p"
+        self.fps = int(fps) if fps else int(cfg["video"]["fps"])
+        self.encoder = encoder or "auto"
+        self.engine_type = engine_type or "2d_cartoon"
         self.engines_used = set()
         self.warnings = []
         self.seed = int(script.get("music_seed", zlib.crc32(str(script.get("id", "x")).encode("utf-8")) % 100000))
@@ -287,13 +346,13 @@ class Episode:
 
     # -------------------------------------------------------------- rendering
     def _prepare_format(self, fmt):
-        L = dict(LAYOUTS[fmt])
+        L = get_scaled_layout(fmt, getattr(self, "resolution", "1080p"))
         self.L = L
         self.font = load_font(str(self.root / FONT))
         self.bg_cache = {}
         self.sprite_cache = {}
         self.img_cache = {}
-        self.cloud = art.draw_cloud(int(L["W"] * 0.26 if fmt == "vertical" else L["W"] * 0.16))
+        self.cloud = art.draw_cloud(int(L["W"] * 0.26 if fmt == "vertical" else (L["W"] * 0.22 if fmt == "square" else L["W"] * 0.16)))
         rnd = random.Random(self.seed)
         self.clouds = [(rnd.uniform(0, L["W"]), rnd.uniform(*L["cloud_band"]), rnd.uniform(14, 30)) for _ in range(3)]
         # blink schedule per character
@@ -417,10 +476,14 @@ class Episode:
         L = self.L
         sc = next((s for s in self.scenes if s.start <= t < s.end), self.scenes[-1])
         frame = self._bg(sc.bg).copy()
+        is_parallax = getattr(self, "engine_type", "2d_cartoon") == "25d_parallax"
+        scale = L.get("scale", 1.0)
+        p_offset = int(12 * math.sin(t * 0.5) * scale) if is_parallax else 0
+
         if sc.bg in art.OUTDOOR:
             cw = self.cloud.width
             for x0, y0, sp in self.clouds:
-                x = (x0 + sp * t) % (L["W"] + cw) - cw
+                x = (x0 + sp * t + int(p_offset * 1.5)) % (L["W"] + cw) - cw
                 frame.paste(self.cloud, (int(x), int(y0)), self.cloud)
 
         # characters
@@ -431,7 +494,7 @@ class Episode:
         cw, _ = art.char_size(h)
         speaking_line = next((ln for ln in sc.lines if ln.start <= t < ln.end), None)
         for idx, c in enumerate(cast):
-            cx = L["W"] * L["xs"][min(n, 4)][idx]
+            cx = L["W"] * L["xs"][min(n, 4)][idx] + int(p_offset * 0.7)
             side = -1 if cx < L["W"] / 2 else 1
             act = next((a for a in reversed(sc.actions) if a.data["who"] == c and a.start <= t < a.end), None)
             action = act.data["action"] if act else "none"
@@ -471,7 +534,7 @@ class Episode:
                 r, col = divmod(d["slot"], L["row_max"])
                 in_row = per_row if r < rows - 1 else slots - per_row * (rows - 1)
                 gap = px * 1.12
-                cx = L["W"] / 2 + (col - (in_row - 1) / 2) * gap
+                cx = L["W"] / 2 + (col - (in_row - 1) / 2) * gap + int(p_offset * 1.2)
                 cy = L["items_y"] + (r - (rows - 1) / 2) * gap - (gap * 0.25 if rows > 1 else 0)
                 cy += 6 * math.sin(t * 3 + d["slot"])
                 img = self._item_img(d["kind"], d["color"], px)
@@ -481,7 +544,8 @@ class Episode:
         for sp in sc.cards:
             if sp.start <= t < sp.end:
                 img = self._card_img(sp.data["text"], sp.data.get("color"))
-                self._paste_center(frame, img, *L["card"], ease_back((t - sp.start) / 0.35))
+                card_x = L["card"][0] + int(p_offset * 1.0)
+                self._paste_center(frame, img, card_x, L["card"][1], ease_back((t - sp.start) / 0.35))
 
         # intro / outro banner
         if sc.kind in ("intro", "outro"):
@@ -515,14 +579,58 @@ class Episode:
         self._prepare_format(fmt)
         L = self.L
         v = self.cfg["video"]
-        cmd = [audio.ffmpeg_exe(), "-y", "-loglevel", "error",
-               "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (L["W"], L["H"]), "-r", str(self.fps),
-               "-i", "-", "-i", str(audio_wav),
-               "-c:v", "libx264", "-preset", v.get("preset", "veryfast"), "-crf", str(v.get("crf", 21)),
-               "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-ac", "2",
-               "-c:a", "aac", "-b:a", "160k", "-shortest",
-               "-movflags", "+faststart", str(out_mp4)]
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, **audio._no_window())
+
+        # Choose encoder
+        candidate = getattr(self, "encoder", "auto")
+        if candidate == "auto" or not candidate:
+            try:
+                from . import hardware
+                tests = hardware.detect_hardware().get("encoders", {})
+                if tests.get("h264_nvenc", {}).get("ok"):
+                    candidate = "h264_nvenc"
+                elif tests.get("h264_qsv", {}).get("ok"):
+                    candidate = "h264_qsv"
+                elif tests.get("h264_mf", {}).get("ok"):
+                    candidate = "h264_mf"
+                else:
+                    candidate = "libx264"
+            except Exception:
+                candidate = "libx264"
+
+        def _get_ffmpeg_cmd(enc):
+            c = [audio.ffmpeg_exe(), "-y", "-loglevel", "error",
+                 "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (L["W"], L["H"]), "-r", str(self.fps),
+                 "-i", "-", "-i", str(audio_wav)]
+            if enc == "h264_nvenc":
+                c += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "22", "-pix_fmt", "yuv420p"]
+            elif enc == "h264_qsv":
+                c += ["-c:v", "h264_qsv", "-preset", "veryfast", "-global_quality", "22"]
+            elif enc == "h264_mf":
+                c += ["-c:v", "h264_mf", "-pix_fmt", "yuv420p"]
+            else:
+                c += ["-c:v", "libx264", "-preset", v.get("preset", "veryfast"), "-crf", str(v.get("crf", 21)),
+                      "-pix_fmt", "yuv420p"]
+            c += ["-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-ac", "2",
+                  "-c:a", "aac", "-b:a", "160k", "-shortest",
+                  "-movflags", "+faststart", str(out_mp4)]
+            return c
+
+        active_encoder = candidate
+        cmd = _get_ffmpeg_cmd(active_encoder)
+        self.log("  encoder: %s (%dx%d @ %dfps)" % (active_encoder, L["W"], L["H"], self.fps))
+
+        proc = None
+        try:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, **audio._no_window())
+        except Exception as e:
+            if active_encoder != "libx264":
+                self.log("  %s start failed (%s), fallback to libx264" % (active_encoder, e))
+                active_encoder = "libx264"
+                cmd = _get_ffmpeg_cmd(active_encoder)
+                proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, **audio._no_window())
+            else:
+                raise
+
         frames = int(math.ceil(self.duration * self.fps))
         t0 = time.time()
         last = t0
@@ -536,8 +644,25 @@ class Episode:
         finally:
             proc.stdin.close()
             rc = proc.wait()
+
+        # Fallback if hardware encoder failed during run
+        if rc != 0 and active_encoder != "libx264":
+            self.log("  %s returned %d, retrying with CPU libx264..." % (active_encoder, rc))
+            active_encoder = "libx264"
+            cmd = _get_ffmpeg_cmd(active_encoder)
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, **audio._no_window())
+            try:
+                for f in range(frames):
+                    img = self._draw_frame(f / self.fps)
+                    proc.stdin.write(img.tobytes())
+            finally:
+                proc.stdin.close()
+                rc = proc.wait()
+
         if rc != 0:
-            raise RuntimeError("ffmpeg failed while writing %s" % out_mp4)
+            raise RuntimeError("ffmpeg failed while writing %s (code %d)" % (out_mp4, rc))
+
+        self.last_encoder_used = active_encoder
         return time.time() - t0
 
     def still(self, fmt, t):
@@ -558,30 +683,51 @@ class Episode:
         return "\n".join(out)
 
 
-def produce(script, cfg, out_dir, formats=None, log=print):
+def produce(script, cfg, out_dir, formats=None, log=print,
+            resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon", device_id=None):
     """Full pipeline for one script. Returns a result dict for the batch report."""
     t0 = time.time()
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     slug = script["id"]
-    ep = Episode(script, cfg, log).build()
+    ep = Episode(script, cfg, log, resolution=resolution, fps=fps, encoder=encoder, engine_type=engine_type).build()
     wav = out_dir / "_mix.wav"
     ep.mix_audio(wav)
     formats = formats or cfg["video"]["formats"]
     files = {}
+    verifications = {}
+    encoders_used = {}
+
     for fmt in formats:
         mp4 = out_dir / ("%s_%s.mp4" % (slug, fmt))
         secs = ep.render(fmt, mp4, wav)
         files[fmt] = mp4.name
-        log("  %s done in %.0fs" % (fmt, secs))
+        enc_name = getattr(ep, "last_encoder_used", "libx264")
+        encoders_used[fmt] = enc_name
+        log("  %s done in %.1fs (%s)" % (fmt, secs, enc_name))
+
+        # Real verification using ffprobe/ffmpeg probe
+        try:
+            from . import hardware
+            probe_res = hardware.probe_video(mp4)
+            verifications[fmt] = probe_res
+            if probe_res.get("ok"):
+                log("  verified: %s, %.1fs, %s, %.2fMB" % (
+                    probe_res["resolution"], probe_res["duration_seconds"],
+                    probe_res["video_codec"], probe_res["size_mb"]))
+            else:
+                log("  verification warning: %s" % probe_res.get("error"))
+        except Exception as e:
+            verifications[fmt] = {"ok": False, "error": str(e)}
+
         thumb_t = min(ep.scenes[0].end - 0.3, 1.6)
         im = ep.still(fmt, thumb_t)
-        if fmt == "horizontal":
+        if fmt == "horizontal" and im.width > 1280:
             im = im.resize((1280, 720), Image.LANCZOS)
         name = "thumb_%s.jpg" % fmt
         im.save(out_dir / name, quality=90)
         files["thumb_" + fmt] = name
-    wav.unlink()
+    wav.unlink(missing_ok=True)
     (out_dir / "subtitles.srt").write_text(ep.srt(), encoding="utf-8")
     files["subtitles"] = "subtitles.srt"
 
@@ -615,6 +761,14 @@ def produce(script, cfg, out_dir, formats=None, log=print):
         "needs_review": review,
         "status": "ready_for_approval",
         "render_seconds": round(time.time() - t0, 1),
+        # Local GPU Studio V1 Metadata
+        "engine_type": engine_type,
+        "resolution": getattr(ep, "resolution", "1080p"),
+        "fps": ep.fps,
+        "encoders_used": encoders_used,
+        "verifications": verifications,
+        "device_id": device_id or getattr(ep, "encoder", "auto"),
     }
     (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return meta
     return meta

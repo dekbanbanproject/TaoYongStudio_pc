@@ -85,7 +85,7 @@ def cmd_validate(a, cfg):
     return 0 if not err else 2
 
 
-def _render_one(path, cfg, out_root, formats):
+def _render_one(path, cfg, out_root, formats, resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon", device_id=None):
     from .episode import produce
     sc = scriptmod.load(path)
     err, warn = scriptmod.validate(sc)
@@ -96,9 +96,11 @@ def _render_one(path, cfg, out_root, formats):
     out = Path(out_root) / sc["id"]
     # a script may ask for specific formats (e.g. long stories: horizontal only)
     if sc.get("formats") and list(formats) == list(cfg["video"]["formats"]):
-        wanted = [f for f in sc["formats"] if f in ("vertical", "horizontal")]
+        wanted = [f for f in sc["formats"] if f in ("vertical", "horizontal", "square")]
         formats = wanted or formats
-    meta = produce(sc, cfg, out, formats, log=_log)
+    meta = produce(sc, cfg, out, formats, log=_log,
+                   resolution=resolution, fps=fps, encoder=encoder,
+                   engine_type=engine_type, device_id=device_id)
     meta["script_warnings"] = warn
     meta["folder"] = str(out)
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -108,9 +110,38 @@ def _render_one(path, cfg, out_root, formats):
 def cmd_render(a, cfg):
     out = Path(a.out) if a.out else ROOT / "output" / dt.date.today().isoformat()
     _log("render %s" % a.file)
-    meta = _render_one(a.file, cfg, out, _formats(a.format, cfg))
+    res = getattr(a, "resolution", "1080p")
+    fps = getattr(a, "fps", None)
+    enc = getattr(a, "encoder", "auto")
+    eng = getattr(a, "engine", "2d_cartoon")
+    dev = getattr(a, "device", None)
+    meta = _render_one(a.file, cfg, out, _formats(a.format, cfg),
+                       resolution=res, fps=fps, encoder=enc, engine_type=eng, device_id=dev)
     _log("done: %s (%.1fs video, rendered in %.0fs)" % (meta["folder"], meta["duration_seconds"], meta["render_seconds"]))
     print(json.dumps(meta, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_hardware(a, cfg):
+    from . import hardware
+    info = hardware.detect_hardware()
+    print("=== TAOYONGSTUDIO HARDWARE DETECTION ===")
+    print("CPU:", info["cpu"]["name"], "(%d threads @ %d MHz)" % (info["cpu"]["logical_cores"], info["cpu"]["mhz"]))
+    print("RAM: Total %.2f GB, Avail %.2f GB (Load %d%%)" % (info["ram"]["total_gb"], info["ram"]["avail_gb"], info["ram"]["load_percent"]))
+    print("Disk: Free %.1f GB / %.1f GB" % (info["disk"]["free_gb"], info["disk"]["total_gb"]))
+    print("\n--- Display Adapters (GPUs) ---")
+    for g in info["gpus"]:
+        print(" * %s (Provider: %s, Driver: %s)" % (g["name"], g["provider"], g["driver_version"]))
+    print("\n--- Hardware Video Encoders ---")
+    for k, v in info["encoders"].items():
+        status = "READY" if v["ok"] else ("FAILED: " + v["error"])
+        print(" * %-12s: %s" % (k, status))
+    print("\n--- Available Animation Engines ---")
+    for k, v in info["engines"].items():
+        print(" * %-20s: %s" % (v["name"], v["status"]))
+    print("\n--- Detected Devices for Studio V1 ---")
+    for d in info["devices"]:
+        print(" [ %s ] %s\n   Status: %s\n   Encoder: %s\n" % (d["id"], d["label"], d["status"], d["encoder"]))
     return 0
 
 
@@ -293,11 +324,17 @@ def main(argv=None):
     ap.add_argument("--config", help="path to config.json")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check")
+    sub.add_parser("hardware")
     p = sub.add_parser("validate")
     p.add_argument("file")
     p = sub.add_parser("render")
     p.add_argument("file")
-    p.add_argument("--format", choices=["vertical", "horizontal", "both", "config"], default="config")
+    p.add_argument("--format", choices=["vertical", "horizontal", "square", "both", "config"], default="config")
+    p.add_argument("--resolution", choices=["480p", "720p", "1080p", "4k"], default="1080p")
+    p.add_argument("--fps", type=int, choices=[12, 24, 30], default=None)
+    p.add_argument("--encoder", choices=["auto", "h264_nvenc", "h264_qsv", "h264_mf", "libx264"], default="auto")
+    p.add_argument("--engine", choices=["2d_cartoon", "25d_parallax", "3d_blender", "ai_image_to_video", "ai_text_to_video"], default="2d_cartoon")
+    p.add_argument("--device", default=None)
     p.add_argument("--out")
     p = sub.add_parser("batch")
     p.add_argument("--limit", type=int, default=0)
@@ -352,7 +389,7 @@ def main(argv=None):
     sub.add_parser("samples")
     a = ap.parse_args(argv)
     cfg = config.load(a.config)
-    fn = {"check": cmd_check, "validate": cmd_validate, "render": cmd_render, "batch": cmd_batch,
+    fn = {"check": cmd_check, "hardware": cmd_hardware, "validate": cmd_validate, "render": cmd_render, "batch": cmd_batch,
           "still": cmd_still, "voices": cmd_voices, "samples": cmd_samples,
           "publish": cmd_publish, "compile": cmd_compile,
           "import-video": cmd_import_video, "google-video": cmd_google_video,
