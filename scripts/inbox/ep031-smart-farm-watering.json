@@ -1,0 +1,93 @@
+{
+  "id": "ep031-smart-farm-watering",
+  "title": "ปุยฝ้ายกับฟาร์มอัจฉริยะ รดน้ำอัตโนมัติ",
+  "description": "ปุยฝ้ายและเจี๊ยบพาไปดูแปลงแครอทในสมาร์ทฟาร์ม มีเซนเซอร์ตรวจดินและรดน้ำอัตโนมัติ",
+  "tags": [
+    "Smart Farm",
+    "สมาร์ทฟาร์ม",
+    "การ์ตูนเด็ก",
+    "เกษตรอัจฉริยะ"
+  ],
+  "genre": "Smart Farm",
+  "characters": [
+    "bunny",
+    "chick"
+  ],
+  "music_seed": 3101,
+  "scenes": [
+    {
+      "background": "meadow",
+      "cast": [
+        "bunny",
+        "chick"
+      ],
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "ยินดีต้อนรับสู่ สมาร์ทฟาร์ม จ้ะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "แปลงแครอท สวยจังเลย",
+          "action": "jump",
+          "card": "Smart Farm",
+          "items": {
+            "kind": "carrot",
+            "count": 3,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "ถ้าดินแห้ง ระบบจะรดน้ำเองนะ",
+          "action": "point",
+          "card": "รดน้ำอัตโนมัติ"
+        },
+        {
+          "who": "narrator",
+          "say": "เซนเซอร์ตรวจวัดความชื้นในดิน"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "chick",
+          "say": "ว้าว น้ำพุ่งออกมารดแปลงผักแล้ว",
+          "action": "cheer",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "ต้นไม้ได้น้ำ ชุ่มฉ่ำ สดชื่น",
+          "action": "happy",
+          "card": "ต้นไม้เติบโต",
+          "items": {
+            "kind": "flower",
+            "count": 3,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "เทคโนโลยีช่วยดูแลธรรมชาติได้ดีจัง"
+        },
+        {
+          "who": "chick",
+          "say": "แครอทของเรา โตไวแน่นอน",
+          "action": "dance",
+          "react": "dance"
+        },
+        {
+          "who": "bunny",
+          "say": "มาดูแลฟาร์มด้วยกันนะจ๊ะ",
+          "action": "wave",
+          "react": "happy",
+          "card": "",
+          "items": null
+        }
+      ]
+    }
+  ]
+}

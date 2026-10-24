@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261024-074420",
+  "created": "2026-10-24T07:44:20",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i13",
+      "genre": "มารยาทและนิสัยดี",
+      "title": "ขอโทษนะ เมื่อเราทำผิด",
+      "summary": "โกโก้ชนของเล่นของปุยฝ้ายแล้วกล่าวขอโทษ",
+      "characters": [
+        "bear",
+        "bunny"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "both",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "claude",
+  "delivery": "chat_handoff"
+}

@@ -1,0 +1,96 @@
+{
+  "id": "ep005-count-stars-bedtime",
+  "title": "นับดาวก่อนนอน 1 ถึง 5 ฝันดีนะเด็กๆ",
+  "description": "นับดาวบนท้องฟ้ายามค่ำคืน 1 ถึง 5 แบบช้าๆ สบายๆ เหมาะดูก่อนเข้านอน",
+  "tags": [
+    "นับเลข",
+    "ก่อนนอน",
+    "นิทานก่อนนอน",
+    "การ์ตูนเด็ก"
+  ],
+  "characters": [
+    "bunny",
+    "bear"
+  ],
+  "music_seed": 503,
+  "scenes": [
+    {
+      "background": "night",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "ดึกแล้ว มานับดาวก่อนนอนกันนะ",
+          "action": "point",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "หนึ่ง",
+          "card": "1",
+          "items": {
+            "kind": "star",
+            "count": 1
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "สอง",
+          "card": "2",
+          "items": {
+            "kind": "star",
+            "count": 2
+          }
+        },
+        {
+          "who": "bear",
+          "say": "สาม",
+          "card": "3",
+          "items": {
+            "kind": "star",
+            "count": 3
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "สี่",
+          "card": "4",
+          "items": {
+            "kind": "star",
+            "count": 4
+          }
+        },
+        {
+          "who": "bear",
+          "say": "ห้า",
+          "card": "5",
+          "items": {
+            "kind": "star",
+            "count": 5
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "ดาวห้าดวง สวยจังเลย",
+          "action": "happy",
+          "react": "happy"
+        }
+      ]
+    },
+    {
+      "background": "bedroom",
+      "beats": [
+        {
+          "who": "bear",
+          "say": "ได้เวลานอนแล้ว ฝันดีนะ",
+          "action": "wave",
+          "react": "wave"
+        },
+        {
+          "who": "bunny",
+          "say": "ฝันดีจ้ะ เพื่อนๆ",
+          "action": "happy"
+        }
+      ]
+    }
+  ]
+}

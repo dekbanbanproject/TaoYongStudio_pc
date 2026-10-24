@@ -1,0 +1,107 @@
+{
+  "id": "ep026-eat-vegetables",
+  "title": "กินผักให้ครบ แข็งแรงจัง กับปุยฝ้ายและโกโก้",
+  "description": "ปุยฝ้ายชวนโกโก้ลองกินแครอทและผัก สอนให้เด็กๆ ชอบกินผักเพื่อร่างกายแข็งแรง",
+  "tags": [
+    "สุขอนามัย",
+    "กินผัก",
+    "กิจวัตร",
+    "การ์ตูนเด็ก"
+  ],
+  "genre": "สุขอนามัยและกิจวัตร",
+  "characters": [
+    "bunny",
+    "bear"
+  ],
+  "music_seed": 2605,
+  "scenes": [
+    {
+      "background": "meadow",
+      "cast": [
+        "bunny",
+        "bear"
+      ],
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "ได้เวลากินข้าว แล้วจ้ะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "ผักไม่อร่อยหรอก ฉันไม่กินดีกว่า",
+          "action": "talk"
+        },
+        {
+          "who": "bunny",
+          "say": "ลองแครอท สีส้มนี่สิ กรุบกรอบนะ",
+          "action": "point",
+          "card": "แครอท",
+          "items": {
+            "kind": "carrot",
+            "count": 3,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "โกโก้ลองกินแครอท หนึ่งคำ",
+          "items": {
+            "kind": "carrot",
+            "count": 2,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "ว้าว หวานกรอบ อร่อยจัง",
+          "action": "jump",
+          "react": "happy"
+        },
+        {
+          "who": "narrator",
+          "say": "เด็กๆ ชอบกินผักอะไรบ้างนะ"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bunny",
+          "say": "กินผัก ทำให้ตัวเราแข็งแรง",
+          "action": "cheer",
+          "card": "กินผัก แข็งแรง"
+        },
+        {
+          "who": "bear",
+          "say": "กินผลไม้ด้วย อย่างแอปเปิ้ล",
+          "action": "point",
+          "card": "ผลไม้",
+          "items": {
+            "kind": "apple",
+            "count": 2,
+            "color": "red"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "กินผัก กินผลไม้ ทุกวันนะ"
+        },
+        {
+          "who": "bunny",
+          "say": "แล้วเราจะ วิ่งเล่นได้ทั้งวัน",
+          "action": "dance",
+          "react": "dance",
+          "card": "",
+          "items": null
+        },
+        {
+          "who": "bear",
+          "say": "ขอบคุณสำหรับอาหารนะ",
+          "action": "happy",
+          "react": "happy"
+        }
+      ]
+    }
+  ]
+}

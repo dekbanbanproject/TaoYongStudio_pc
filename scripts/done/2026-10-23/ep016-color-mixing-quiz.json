@@ -1,0 +1,137 @@
+{
+  "id": "ep016-color-mixing-quiz",
+  "title": "ทายสิ! ผสมสีแล้วได้สีอะไร เกมทบทวนผสมสี",
+  "description": "เกมทายผสมสี ทบทวน ส้ม เขียว ม่วง ให้เด็กๆ ตอบก่อนเฉลย",
+  "tags": [
+    "ผสมสี",
+    "เกมเด็ก",
+    "ทายปัญหา",
+    "การ์ตูนเด็ก",
+    "สีและรูปทรง"
+  ],
+  "genre": "สีและรูปทรง",
+  "formats": [
+    "horizontal"
+  ],
+  "request_id": "REQ-20261023-110839",
+  "characters": [
+    "bear",
+    "bunny"
+  ],
+  "music_seed": 1604,
+  "scenes": [
+    {
+      "background": "classroom",
+      "beats": [
+        {
+          "who": "bear",
+          "say": "มาเล่นเกม ทายสีกันนะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "ฟังให้ดีนะ แล้วตอบดังๆ เลย",
+          "action": "point"
+        },
+        {
+          "who": "bear",
+          "say": "แดง ผสม เหลือง ได้สีอะไร?",
+          "card": "แดง + เหลือง = ?",
+          "items": null
+        },
+        {
+          "pause": 2.2
+        },
+        {
+          "who": "bunny",
+          "say": "สีส้ม เก่งมาก",
+          "card": "สีส้ม",
+          "card_color": "orange",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "orange"
+          },
+          "action": "cheer"
+        },
+        {
+          "who": "bunny",
+          "say": "น้ำเงิน ผสม เหลือง ได้สีอะไร?",
+          "card": "น้ำเงิน + เหลือง = ?",
+          "items": null
+        },
+        {
+          "pause": 2.2
+        },
+        {
+          "who": "bear",
+          "say": "สีเขียว ถูกต้อง",
+          "card": "สีเขียว",
+          "card_color": "green",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "green"
+          },
+          "action": "cheer"
+        },
+        {
+          "who": "bear",
+          "say": "แดง ผสม น้ำเงิน ได้สีอะไร?",
+          "card": "แดง + น้ำเงิน = ?",
+          "items": null
+        },
+        {
+          "pause": 2.2
+        },
+        {
+          "who": "bunny",
+          "say": "สีม่วง เก่งที่สุดเลย",
+          "card": "สีม่วง",
+          "card_color": "purple",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "purple"
+          },
+          "action": "jump",
+          "react": "cheer"
+        }
+      ]
+    },
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bear",
+          "say": "ทบทวนกันนะ ส้ม เขียว ม่วง",
+          "card": "",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "เราได้ สามสีใหม่ จากการผสมสี",
+          "card": "3",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "ลองผสมสีเล่น กับคุณพ่อคุณแม่นะ",
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "เย้ เก่งมากเลย",
+          "action": "dance",
+          "react": "dance"
+        }
+      ]
+    }
+  ]
+}

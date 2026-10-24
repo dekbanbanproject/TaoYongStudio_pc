@@ -1,0 +1,89 @@
+{
+  "id": "ep011-car-colors",
+  "title": "รถสีอะไร? เรียนรู้สีกับรถคันเล็ก",
+  "description": "รถสีแดง สีน้ำเงิน สีเหลือง สีเขียว มาเรียนสีกับรถคันน้อยกัน",
+  "tags": [
+    "เรียนรู้สี",
+    "รถ",
+    "การ์ตูนเด็ก",
+    "สื่อการสอนเด็ก"
+  ],
+  "characters": [
+    "bear",
+    "cat"
+  ],
+  "music_seed": 1109,
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bear",
+          "say": "บรื้นๆ รถมาแล้ว",
+          "action": "dance",
+          "react": "happy"
+        },
+        {
+          "who": "cat",
+          "say": "รถคันนี้ สีแดง",
+          "card": "สีแดง",
+          "card_color": "red",
+          "items": {
+            "kind": "car",
+            "count": 1,
+            "color": "red"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "รถคันนี้ สีน้ำเงิน",
+          "card": "สีน้ำเงิน",
+          "card_color": "blue",
+          "items": {
+            "kind": "car",
+            "count": 1,
+            "color": "blue"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "รถคันนี้ สีเหลือง",
+          "card": "สีเหลือง",
+          "card_color": "#E0A800",
+          "items": {
+            "kind": "car",
+            "count": 1,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "รถคันนี้ สีเขียว",
+          "card": "สีเขียว",
+          "card_color": "green",
+          "items": {
+            "kind": "car",
+            "count": 1,
+            "color": "green"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "รถสีอะไร ที่หนูชอบที่สุดเอ่ย?",
+          "card": "",
+          "items": null,
+          "action": "point"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "bear",
+          "say": "โกโก้ชอบสีแดงที่สุดเลย",
+          "action": "happy",
+          "react": "happy"
+        }
+      ]
+    }
+  ]
+}

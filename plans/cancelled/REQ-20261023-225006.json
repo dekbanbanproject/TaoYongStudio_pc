@@ -1,0 +1,26 @@
+{
+  "id": "REQ-20261023-225006",
+  "created": "2026-10-23T22:50:06",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i26",
+      "genre": "คลิปรวม",
+      "title": "รวมการ์ตูนก่อนนอน 20 นาที",
+      "summary": "รวมนิทานก่อนนอนและกิจวัตรก่อนนอนต่อกัน",
+      "characters": [
+        "bunny",
+        "bear",
+        "chick",
+        "cat"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 1200,
+  "format": "horizontal",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "gemini_api"
+}

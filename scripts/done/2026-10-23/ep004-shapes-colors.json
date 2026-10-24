@@ -1,0 +1,80 @@
+{
+  "id": "ep004-shapes-colors",
+  "title": "วงกลม สี่เหลี่ยม สามเหลี่ยม รู้จักรูปทรงกับเจี๊ยบ",
+  "description": "เรียนรู้รูปทรงพื้นฐาน วงกลม สี่เหลี่ยม สามเหลี่ยม พร้อมสีสันสดใส",
+  "tags": [
+    "รูปทรง",
+    "เรียนรู้รูปทรง",
+    "การ์ตูนเด็ก",
+    "สื่อการสอนเด็ก"
+  ],
+  "characters": [
+    "chick",
+    "cat"
+  ],
+  "music_seed": 402,
+  "scenes": [
+    {
+      "background": "classroom",
+      "beats": [
+        {
+          "who": "chick",
+          "say": "เจี๊ยบ เจี๊ยบ มาดูรูปทรงกัน",
+          "action": "jump",
+          "react": "happy"
+        },
+        {
+          "who": "cat",
+          "say": "นี่คือ วงกลม กลมๆ เหมือนลูกบอล",
+          "card": "วงกลม",
+          "items": {
+            "kind": "circle",
+            "count": 1,
+            "color": "blue"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "นี่คือ สี่เหลี่ยม มีสี่มุม",
+          "card": "สี่เหลี่ยม",
+          "items": {
+            "kind": "square",
+            "count": 1,
+            "color": "green"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "นี่คือ สามเหลี่ยม มีสามมุม",
+          "card": "สามเหลี่ยม",
+          "items": {
+            "kind": "triangle",
+            "count": 1,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "ทายสิ รูปนี้คือรูปอะไรเอ่ย?",
+          "card": "",
+          "items": {
+            "kind": "circle",
+            "count": 1,
+            "color": "red"
+          },
+          "action": "point"
+        },
+        {
+          "pause": 2.0
+        },
+        {
+          "who": "cat",
+          "say": "วงกลม ถูกต้องแล้ว",
+          "card": "วงกลม",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

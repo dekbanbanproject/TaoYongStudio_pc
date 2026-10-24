@@ -1,0 +1,10 @@
+{
+  "id": "REQ-20261023-225859",
+  "status": "done",
+  "script_ids": [
+    "ep-bedtime-routine-01",
+    "ep-starlight-story-02"
+  ],
+  "compilation_id": "comp-bedtime-20m",
+  "message": "นำเข้าจาก Gemini Pro"
+}

@@ -1,0 +1,2343 @@
+"""TaoYongStudio desktop window (Tkinter, ships with Python on Windows).
+
+Start with:  TaoYongStudio.bat   (or: .venv\\Scripts\\pythonw -m studio.gui)
+"""
+import datetime as dt
+import json
+import os
+import queue
+import shutil
+import subprocess
+import sys
+import threading
+import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog, messagebox, simpledialog, ttk
+
+from PIL import Image, ImageTk
+
+from . import config as cfgmod
+from . import script as scriptmod
+from .config import ROOT
+
+IS_WIN = os.name == "nt"
+NOWIN = {"creationflags": 0x08000000} if IS_WIN else {}
+TASK_NAME = "KidsStudio Daily Batch"
+
+# palette
+BG = "#F6F3FF"
+CARD = "#FFFFFF"
+INK = "#2B1D4A"
+MUTED = "#6E6487"
+ACCENT = "#7B5CFF"
+ACCENT_D = "#5B3FE0"
+GOOD = "#2E9E5B"
+WARN = "#D9822B"
+BAD = "#D64545"
+LINE = "#E4DEF5"
+
+CHAR_NAMES = {"narrator": "ผู้บรรยาย", "bunny": "ปุยฝ้าย (กระต่าย)", "bear": "โกโก้ (หมี)",
+              "chick": "เจี๊ยบ (ลูกไก่)", "cat": "มิวมิว (แมว)"}
+VOICE_CHOICES = ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"]
+STATUS_TH = {"ready_for_approval": "รอตรวจ", "approved": "อนุมัติแล้ว", "posted": "โพสต์แล้ว",
+             "rejected": "ไม่ใช้"}
+WORKSPACES = (("tiktok", "TikTok", "vertical"), ("youtube", "YouTube", "vertical"),
+              ("shopee", "Shopee", "vertical"), ("facebook_profile", "Facebook Profile", "vertical"),
+              ("facebook_page", "Facebook Page", "vertical"))
+
+
+def pick_font():
+    if IS_WIN:
+        return "Leelawadee UI"
+    return "Loma"
+
+
+def open_path(p):
+    p = str(p)
+    if IS_WIN:
+        os.startfile(p)  # noqa
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", p])
+    else:
+        subprocess.Popen(["xdg-open", p])
+
+
+def python_exe(windowed=False):
+    exe = Path(sys.executable)
+    if IS_WIN and exe.name.lower() == "pythonw.exe" and not windowed:
+        alt = exe.with_name("python.exe")
+        if alt.exists():
+            return str(alt)
+    return str(exe)
+
+
+class StudioApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("TaoYongStudio - สตูดิโอการ์ตูนเด็ก")
+        self.geometry("1240x820")
+        self.minsize(1000, 680)
+        if IS_WIN:
+            try:
+                self.state("zoomed")  # open maximised like a normal desktop program
+            except tk.TclError:
+                pass
+        self.configure(bg=BG)
+        self.F = pick_font()
+        self.cfg = cfgmod.load()
+        self.proc = None
+        self.q = queue.Queue()
+        self._img_refs = []
+        self._set_icon()
+        self._styles()
+        self._build()
+        self.after(150, self._poll)
+        self.refresh_all()
+
+    # ------------------------------------------------------------------ look
+    def _set_icon(self):
+        ico = ROOT / "studio" / "app.ico"
+        png = ROOT / "studio" / "app.png"
+        try:
+            if IS_WIN and ico.exists():
+                self.iconbitmap(default=str(ico))
+            elif png.exists():
+                self._icon = ImageTk.PhotoImage(Image.open(png).resize((64, 64)))
+                self.iconphoto(True, self._icon)
+        except Exception:
+            pass
+
+    def _styles(self):
+        s = ttk.Style(self)
+        try:
+            s.theme_use("clam")
+        except tk.TclError:
+            pass
+        F = self.F
+        s.configure(".", font=(F, 10), background=BG, foreground=INK)
+        s.configure("TFrame", background=BG)
+        s.configure("Card.TFrame", background=CARD)
+        s.configure("TLabel", background=BG, foreground=INK)
+        s.configure("Card.TLabel", background=CARD)
+        s.configure("Muted.TLabel", background=CARD, foreground=MUTED)
+        s.configure("H1.TLabel", font=(F, 17, "bold"), background=BG)
+        s.configure("H2.TLabel", font=(F, 12, "bold"), background=CARD)
+        s.configure("Big.TLabel", font=(F, 26, "bold"), background=CARD, foreground=ACCENT)
+        s.configure("TNotebook", background=BG, borderwidth=0, tabmargins=(12, 6, 12, 0))
+        s.configure("TNotebook.Tab", font=(F, 10), padding=(4, 7), background="#E9E3FF", foreground=INK,
+                    borderwidth=0)
+        s.map("TNotebook.Tab", background=[("selected", CARD)], foreground=[("selected", ACCENT_D)])
+        s.configure("TButton", font=(F, 10), padding=(12, 6), background="#EEE9FF", foreground=INK,
+                    borderwidth=0, focusthickness=2, focuscolor=ACCENT_D)
+        s.map("TButton", background=[("disabled", "#F2F0F7"), ("pressed", ACCENT_D),
+                                     ("focus", ACCENT), ("active", "#D6CAFF")],
+              foreground=[("disabled", "#AAA3BF"), ("pressed", "#FFFFFF"),
+                          ("focus", "#FFFFFF")])
+        s.configure("Accent.TButton", font=(F, 11, "bold"), padding=(18, 9), background=ACCENT,
+                    foreground="#FFFFFF")
+        s.map("Accent.TButton", background=[("disabled", "#C9BEF7"), ("pressed", "#4930C2"),
+                                            ("focus", ACCENT_D), ("active", ACCENT_D)],
+              foreground=[("disabled", "#FFFFFF"), ("focus", "#FFFFFF")])
+        s.configure("Danger.TButton", background="#FBE4E4", foreground=BAD)
+        s.map("Danger.TButton", background=[("disabled", "#F2F0F7"), ("pressed", "#AD2929"),
+                                            ("focus", BAD), ("active", "#F4C5C5")],
+              foreground=[("disabled", "#AAA3BF"), ("pressed", "#FFFFFF"),
+                          ("focus", "#FFFFFF")])
+        for name, color, hover in (("Selected", ACCENT_D, "#4930C2"),
+                                   ("Posted", GOOD, "#237D47"),
+                                   ("Rejected", BAD, "#AD2929"),
+                                   ("Draft", WARN, "#B56B20")):
+            style = name + ".TButton"
+            s.configure(style, background=color, foreground="#FFFFFF", font=(F, 10, "bold"))
+            s.map(style, background=[("disabled", "#F2F0F7"), ("pressed", hover),
+                                     ("active", hover), ("focus", hover)],
+                  foreground=[("disabled", "#AAA3BF"), ("!disabled", "#FFFFFF")])
+        # Mouse clicks keep keyboard focus, so the last clicked button stays easy to identify.
+        self.bind_class("TButton", "<ButtonPress-1>", lambda event: event.widget.focus_set(), add="+")
+        s.configure("Treeview", font=(F, 10), rowheight=30, background=CARD, fieldbackground=CARD,
+                    bordercolor=LINE, borderwidth=0)
+        s.configure("Treeview.Heading", font=(F, 10, "bold"), background="#EEE9FF", foreground=INK,
+                    borderwidth=0, padding=(6, 6))
+        s.map("Treeview", background=[("selected", "#DCD2FF")], foreground=[("selected", INK)])
+        s.configure("TEntry", padding=6, fieldbackground="#FFFFFF")
+        s.configure("TCombobox", padding=4)
+        s.configure("Horizontal.TProgressbar", troughcolor="#ECE7FB", background=ACCENT, thickness=10,
+                    borderwidth=0)
+        s.configure("TCheckbutton", background=CARD)
+        s.configure("Card.TRadiobutton", background=CARD, foreground=INK)
+        s.configure("PlatformNav.TButton", font=(F, 12, "bold"), padding=(12, 13),
+                    background="#E9E3FF", foreground=INK)
+        s.map("PlatformNav.TButton", background=[("pressed", ACCENT_D), ("active", "#D6CAFF")],
+              foreground=[("pressed", "#FFFFFF")])
+        s.configure("PlatformNavSelected.TButton", font=(F, 12, "bold"), padding=(12, 13),
+                    background=ACCENT_D, foreground="#FFFFFF")
+        s.map("PlatformNavSelected.TButton", background=[("pressed", "#4930C2"),
+                                                        ("active", "#4930C2")],
+              foreground=[("!disabled", "#FFFFFF")])
+        s.configure("TLabelframe", background=CARD, bordercolor=LINE)
+        s.configure("TLabelframe.Label", background=CARD, font=(F, 10, "bold"))
+
+    def card(self, parent, **pack):
+        f = ttk.Frame(parent, style="Card.TFrame", padding=16)
+        if pack:
+            f.pack(**pack)
+        return f
+
+    # ------------------------------------------------------------------ layout
+    def _build(self):
+        head = tk.Frame(self, bg=INK, height=56)
+        head.pack(fill="x")
+        try:
+            self._head_img = ImageTk.PhotoImage(Image.open(ROOT / "studio" / "app.png").resize((34, 34)))
+            tk.Label(head, image=self._head_img, bg=INK).pack(side="left", padx=(16, 8), pady=10)
+        except Exception:
+            pass
+        tk.Label(head, text="TaoYongStudio", bg=INK, fg="#FFFFFF", font=(self.F, 15, "bold")).pack(
+            side="left", padx=(0, 14), pady=10)
+        tk.Label(head, text="สตูดิโอสร้างคลิปการ์ตูนเด็กภาษาไทย", bg=INK, fg="#C9BEF7",
+                 font=(self.F, 10)).pack(side="left", pady=10)
+        self.head_status = tk.Label(head, text="", bg=INK, fg="#FFFFFF", font=(self.F, 10))
+        self.head_status.pack(side="right", padx=18)
+
+        # bottom bar is packed first so it always keeps its height
+        bottom = ttk.Frame(self, padding=(14, 8, 14, 12))
+        bottom.pack(side="bottom", fill="x")
+        body = ttk.Frame(self, padding=(14, 10, 14, 0))
+        body.pack(fill="both", expand=True)
+        self.nb = ttk.Notebook(body)
+        self.nb.pack(fill="both", expand=True)
+        self.tab_home = ttk.Frame(self.nb, padding=14)
+        self.tab_plan = ttk.Frame(self.nb, padding=14)
+        self.tab_scripts = ttk.Frame(self.nb, padding=14)
+        self.tab_clips = ttk.Frame(self.nb, padding=14)
+        self.tab_platforms = ttk.Frame(self.nb, padding=10)
+        self.tab_post = ttk.Frame(self.nb, padding=14)
+        self.tab_sched = ttk.Frame(self.nb, padding=14)
+        self.tab_set = ttk.Frame(self.nb, padding=14)
+        tabs = ((self.tab_home, "หน้าแรก"), (self.tab_plan, "วางแผน"),
+                (self.tab_scripts, "บท"), (self.tab_clips, "คลิป"),
+                (self.tab_platforms, "สร้างและโพสต์"),
+                (self.tab_post, "ตั้งค่าโพสต์"), (self.tab_sched, "ตั้งเวลา"),
+                 (self.tab_set, "ตั้งค่า"))
+        for t, name in tabs:
+            self.nb.add(t, text=name)
+        self.nb.bind("<<NotebookTabChanged>>", lambda e: self.refresh_all())
+        self._build_home()
+        self._build_plan()
+        self._build_scripts()
+        self._build_clips()
+        self._build_platforms()
+        self._build_post()
+        self._build_sched()
+        self._build_settings()
+
+        # bottom: progress + log
+        top = ttk.Frame(bottom)
+        top.pack(fill="x")
+        self.prog_label = ttk.Label(top, text="พร้อมทำงาน", font=(self.F, 10, "bold"))
+        self.prog_label.pack(side="left")
+        self.btn_stop = ttk.Button(top, text="หยุด", style="Danger.TButton", command=self.stop_job,
+                                   state="disabled")
+        self.btn_stop.pack(side="right")
+        self.btn_log = ttk.Button(top, text="ซ่อนบันทึก", command=self._toggle_log)
+        self.btn_log.pack(side="right", padx=6)
+        self.prog = ttk.Progressbar(bottom, mode="determinate", maximum=100)
+        self.prog.pack(fill="x", pady=(6, 6))
+        self.log = tk.Text(bottom, height=5, bg="#1F1636", fg="#E8E2FF", insertbackground="#FFFFFF",
+                           font=("Consolas" if IS_WIN else "DejaVu Sans Mono", 9), relief="flat",
+                           padx=10, pady=6, wrap="word")
+        self.log.pack(fill="x")
+        self.log.tag_configure("bad", foreground="#FF9C9C")
+        self.log.tag_configure("good", foreground="#9CF0B8")
+
+    def _toggle_log(self):
+        if self.log.winfo_ismapped():
+            self.log.pack_forget()
+            self.btn_log.configure(text="แสดงบันทึก")
+        else:
+            self.log.pack(fill="x")
+            self.btn_log.configure(text="ซ่อนบันทึก")
+
+    # ------------------------------------------------------------------ home tab
+    def _build_home(self):
+        t = self.tab_home
+        ttk.Label(t, text="สวัสดีครับ วันนี้จะทำคลิปอะไรดี", style="H1.TLabel").pack(anchor="w", pady=(0, 10))
+        stats = ttk.Frame(t)
+        stats.pack(fill="x")
+        self.stat_vals = {}
+        for i, (key, label) in enumerate((("inbox", "บทที่รอสร้าง"), ("today", "คลิปที่สร้างวันนี้"),
+                                          ("review", "คลิปรอตรวจ"), ("next", "สร้างอัตโนมัติครั้งถัดไป"))):
+            c = ttk.Frame(stats, style="Card.TFrame", padding=16)
+            c.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 10, 0))
+            stats.columnconfigure(i, weight=1)
+            ttk.Label(c, text=label, style="Muted.TLabel").pack(anchor="w")
+            v = ttk.Label(c, text="-", style="Big.TLabel")
+            v.pack(anchor="w")
+            self.stat_vals[key] = v
+
+        act = self.card(t, fill="x", pady=(12, 0))
+        ttk.Label(act, text="งานด่วน", style="H2.TLabel").pack(anchor="w", pady=(0, 10))
+        row = ttk.Frame(act, style="Card.TFrame")
+        row.pack(fill="x")
+        self.btn_batch = ttk.Button(row, text="▶  สร้างคลิปจากบททั้งหมด", style="Accent.TButton",
+                                    command=self.run_batch)
+        self.btn_batch.pack(side="left")
+        ttk.Button(row, text="ดูคลิปที่สร้างแล้ว", command=lambda: self.nb.select(self.tab_clips)).pack(
+            side="left", padx=8)
+        ttk.Button(row, text="เพิ่มบทจากไฟล์...", command=self.import_scripts).pack(side="left")
+        ttk.Button(row, text="เปิดโฟลเดอร์ผลงาน", command=lambda: open_path(ROOT / "output")).pack(side="left",
+                                                                                                   padx=8)
+        ttk.Button(row, text="ตรวจความพร้อมเครื่อง", command=self.run_check).pack(side="right")
+
+        tips = self.card(t, fill="both", expand=True, pady=(12, 0))
+        ttk.Label(tips, text="ระบบทำงานอย่างไร", style="H2.TLabel").pack(anchor="w", pady=(0, 8))
+        steps = [
+            "1.  ในแท็บ \"วางแผน\" เลือก Claude, Gemini หรือ ChatGPT แล้วเลือกทำตอนนี้หรือกำหนดเวลา",
+            "2.  เปิดแท็บ \"สร้างและโพสต์\" เลือกแพลตฟอร์มและเรื่อง แล้วกดสร้างคลิปจากเครื่องหรือ Google",
+            "3.  พนักงาน AI เตรียมชื่อเรื่อง คำอธิบาย และแฮชแท็กให้ เปิดดูคลิป เลือก แล้วกดโพสต์",
+            "4.  YouTube และ Facebook Page ต้องเชื่อมบัญชีในแท็บ \"ตั้งค่าโพสต์\" ก่อน; บางแพลตฟอร์มต้องกดเผยแพร่ต่อในเว็บหรือแอป",
+            "5.  แนะนำโพสต์วันละ 2-3 คลิปที่ดีที่สุดต่อแพลตฟอร์ม เพื่อไม่ให้ถูกมองว่าเป็นคลิปผลิตจำนวนมาก",
+        ]
+        for s in steps:
+            ttk.Label(tips, text=s, style="Card.TLabel", wraplength=1000, justify="left").pack(anchor="w", pady=3)
+
+    # ------------------------------------------------------------------ scripts tab
+    def _build_scripts(self):
+        t = self.tab_scripts
+        left = ttk.Frame(t)
+        left.pack(side="left", fill="both", expand=True)
+        bar = ttk.Frame(left)
+        bar.pack(fill="x", pady=(0, 8))
+        ttk.Label(bar, text="บทที่รอสร้างคลิป", style="H1.TLabel").pack(side="left")
+        ttk.Button(bar, text="รีเฟรช", command=self.refresh_scripts).pack(side="right")
+        ttk.Button(bar, text="เพิ่มบทจากไฟล์...", command=self.import_scripts).pack(side="right", padx=6)
+        ttk.Button(bar, text="เพิ่มบทตัวอย่าง", command=self.add_samples).pack(side="right")
+
+        cols = ("title", "chars", "check")
+        self.tv_s = ttk.Treeview(left, columns=cols, show="headings", selectmode="extended")
+        for c, w, txt in (("title", 460, "ชื่อเรื่อง"), ("chars", 220, "ตัวละคร"), ("check", 160, "ผลตรวจบท")):
+            self.tv_s.heading(c, text=txt)
+            self.tv_s.column(c, width=w, anchor="w")
+        self.tv_s.pack(fill="both", expand=True)
+        self.tv_s.tag_configure("bad", foreground=BAD)
+        self.tv_s.tag_configure("warn", foreground=WARN)
+        self.tv_s.bind("<<TreeviewSelect>>", lambda e: self.show_script())
+        self.tv_s.bind("<Double-1>", lambda e: self.edit_script())
+
+        right = ttk.Frame(t, style="Card.TFrame", padding=14, width=340)
+        right.pack(side="right", fill="y", padx=(12, 0))
+        right.pack_propagate(False)
+        btns = ttk.Frame(right, style="Card.TFrame")
+        btns.pack(side="bottom", fill="x")
+        ttk.Label(right, text="รายละเอียด", style="H2.TLabel").pack(anchor="w")
+        self.s_preview = tk.Label(right, bg=CARD)
+        self.s_preview.pack(pady=8)
+        self.s_info = ttk.Label(right, text="เลือกบททางซ้าย", style="Muted.TLabel", wraplength=300,
+                                justify="left")
+        self.s_info.pack(anchor="w", fill="x")
+        ttk.Button(btns, text="▶  สร้างคลิปเรื่องนี้", style="Accent.TButton",
+                   command=self.render_selected).pack(fill="x", pady=3)
+        ttk.Button(btns, text="✦  สร้างแอนิเมชันด้วย Google Flow",
+                   command=self.send_script_to_flow).pack(fill="x", pady=3)
+        ttk.Button(btns, text="ดูภาพตัวอย่าง", command=self.preview_script).pack(fill="x", pady=3)
+        ttk.Button(btns, text="แก้ไขบท (Notepad)", command=self.edit_script).pack(fill="x", pady=3)
+        ttk.Button(btns, text="ลบบทที่เลือก", style="Danger.TButton", command=self.remove_scripts).pack(
+            fill="x", pady=3)
+
+    def _inbox(self):
+        d = ROOT / "scripts" / "inbox"
+        d.mkdir(parents=True, exist_ok=True)
+        return sorted(d.glob("*.json"))
+
+    def refresh_scripts(self):
+        self.tv_s.delete(*self.tv_s.get_children())
+        self._script_cache = {}
+        for p in self._inbox():
+            try:
+                sc = scriptmod.load(p)
+                err, warn = scriptmod.validate(sc)
+                chars = ", ".join(CHAR_NAMES.get(c, c).split(" ")[0] for c in sc.get("characters", []))
+                check = "ผ่าน" if not err and not warn else ("มีคำเตือน %d" % len(warn) if not err
+                                                            else "ผิด %d จุด" % len(err))
+                tag = "bad" if err else ("warn" if warn else "")
+                self.tv_s.insert("", "end", iid=str(p), values=(sc.get("title", p.stem), chars, check), tags=(tag,))
+                self._script_cache[str(p)] = (sc, err, warn)
+            except Exception as e:
+                self.tv_s.insert("", "end", iid=str(p), values=(p.name, "-", "อ่านไฟล์ไม่ได้"), tags=("bad",))
+                self._script_cache[str(p)] = (None, [str(e)], [])
+
+    def _sel_scripts(self):
+        return [Path(i) for i in self.tv_s.selection()]
+
+    def send_script_to_flow(self):
+        selected = self._sel_scripts()
+        if len(selected) != 1:
+            messagebox.showinfo("Google Flow", "เลือกบท 1 เรื่องก่อน")
+            return
+        script_path = selected[0]
+        sc, errors, _ = self._script_cache.get(str(script_path), (None, ["อ่านบทไม่ได้"], []))
+        if sc is None or errors:
+            messagebox.showwarning("Google Flow", "บทนี้ยังมีจุดผิด กรุณาแก้ไขบทก่อน")
+            return
+        fmt = "horizontal" if "horizontal" in sc.get("formats", []) else "vertical"
+        platform = "youtube" if fmt == "horizontal" else "tiktok"
+        ui = self.platform_ui[platform]
+        choice = next((name for name, path in ui["script_map"].items() if path == script_path), None)
+        if choice is None:
+            self.refresh_platform_workspaces()
+            choice = next((name for name, path in ui["script_map"].items() if path == script_path), None)
+        if choice is None:
+            messagebox.showerror("Google Flow", "ไม่พบบทที่เลือกในหน้าสร้างและโพสต์")
+            return
+        ui["script"].set(choice)
+        ui["format"].set(fmt)
+        ui["source"].set("flow")
+        self._platform_story_changed(platform, True)
+        self._platform_source_changed(platform)
+        self._select_platform(platform)
+        self.nb.select(self.tab_platforms)
+        self.platform_open_flow(platform)
+
+    def show_script(self):
+        sel = self._sel_scripts()
+        self.s_preview.configure(image="")
+        if not sel:
+            return
+        sc, err, warn = self._script_cache.get(str(sel[0]), (None, [], []))
+        if sc is None:
+            self.s_info.configure(text="ไฟล์นี้อ่านไม่ได้:\n" + "\n".join(err))
+            return
+        lines = sum(1 for s in sc.get("scenes", []) for b in s.get("beats", []) if b.get("say"))
+        txt = "%s\n\nไฟล์: %s\nฉาก: %d   บทพูด: %d บรรทัด\n\n%s" % (
+            sc.get("title", ""), sel[0].name, len(sc.get("scenes", [])), lines, sc.get("description", ""))
+        if err:
+            txt += "\n\nต้องแก้:\n- " + "\n- ".join(err)
+        if warn:
+            txt += "\n\nคำเตือน:\n- " + "\n- ".join(warn)
+        self.s_info.configure(text=txt)
+
+    def import_scripts(self):
+        files = filedialog.askopenfilenames(title="เลือกไฟล์บท", filetypes=[("บท TaoYongStudio", "*.json *.zip")])
+        n = 0
+        dst = ROOT / "scripts" / "inbox"
+        for f in files:
+            if f.lower().endswith(".zip"):
+                import zipfile
+                with zipfile.ZipFile(f) as z:
+                    for name in z.namelist():
+                        if name.lower().endswith(".json") and "/" not in name.strip("/"):
+                            (dst / Path(name).name).write_bytes(z.read(name))
+                            n += 1
+            else:
+                shutil.copy(f, dst / Path(f).name)
+                n += 1
+        if n:
+            self.say("เพิ่มบท %d เรื่อง" % n, "good")
+        self.refresh_all()
+
+    def add_samples(self):
+        for p in (ROOT / "scripts" / "samples").glob("*.json"):
+            shutil.copy(p, ROOT / "scripts" / "inbox" / p.name)
+        self.refresh_all()
+
+    def edit_script(self):
+        sel = self._sel_scripts()
+        if not sel:
+            return
+        if IS_WIN:
+            subprocess.Popen(["notepad.exe", str(sel[0])])
+        else:
+            open_path(sel[0])
+
+    def remove_scripts(self):
+        sel = self._sel_scripts()
+        if not sel:
+            return
+        if not messagebox.askyesno("ลบบท", "ย้ายบทที่เลือก %d เรื่องไปถังขยะของโปรแกรม (scripts\\removed)?" % len(sel)):
+            return
+        d = ROOT / "scripts" / "removed"
+        d.mkdir(parents=True, exist_ok=True)
+        for p in sel:
+            shutil.move(str(p), d / p.name)
+        self.refresh_all()
+
+    def preview_script(self):
+        sel = self._sel_scripts()
+        if not sel:
+            return
+        sc, err, _ = self._script_cache.get(str(sel[0]), (None, ["?"], []))
+        if err:
+            messagebox.showwarning("ดูภาพตัวอย่าง", "บทนี้ยังมีจุดผิด แก้ก่อนนะครับ")
+            return
+        self.say("กำลังวาดภาพตัวอย่าง...")
+
+        def work():
+            try:
+                from .episode import Episode
+                c = dict(self.cfg)
+                c["tts"] = dict(c["tts"], engines=["silent"])
+                c["allow_test_voice"] = True
+                ep = Episode(sc, c, lambda m: None).build()
+                t = None
+                for s in ep.scenes:
+                    if s.kind == "scene" and s.lines:
+                        t = s.lines[min(2, len(s.lines) - 1)].end - 0.2
+                        break
+                im = ep.still("vertical", t or 3.0)
+                self.q.put(("preview", im))
+            except Exception as e:
+                self.q.put(("log", ("ภาพตัวอย่างไม่สำเร็จ: %s" % e, "bad")))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    # ------------------------------------------------------------------ clips tab
+    def _build_clips(self):
+        t = self.tab_clips
+        left = ttk.Frame(t)
+        left.pack(side="left", fill="both", expand=True)
+        bar = ttk.Frame(left)
+        bar.pack(fill="x", pady=(0, 8))
+        ttk.Label(bar, text="คลิปที่สร้างแล้ว", style="H1.TLabel").pack(side="left")
+        ttk.Button(bar, text="รีเฟรช", command=self.refresh_clips).pack(side="right")
+        self.clip_filter = tk.StringVar(value="ทั้งหมด")
+        cb = ttk.Combobox(bar, textvariable=self.clip_filter, state="readonly", width=14,
+                          values=["ทั้งหมด", "รอตรวจ", "อนุมัติแล้ว", "โพสต์แล้ว", "ไม่ใช้"])
+        cb.pack(side="right", padx=6)
+        cb.bind("<<ComboboxSelected>>", lambda e: self.refresh_clips())
+        ttk.Label(bar, text="แสดง:").pack(side="right")
+
+        cols = ("date", "title", "dur", "status", "posts")
+        self.tv_c = ttk.Treeview(left, columns=cols, show="headings", selectmode="browse")
+        for c, w, txt, anc in (("date", 100, "วันที่", "w"), ("title", 400, "ชื่อเรื่อง", "w"),
+                               ("dur", 70, "ความยาว", "center"), ("status", 120, "สถานะ", "w"),
+                               ("posts", 110, "โพสต์แล้ว", "w")):
+            self.tv_c.heading(c, text=txt)
+            self.tv_c.column(c, width=w, anchor=anc)
+        self.tv_c.pack(fill="both", expand=True)
+        self.tv_c.tag_configure("warn", foreground=WARN)
+        self.tv_c.tag_configure("posted", foreground=GOOD)
+        self.tv_c.tag_configure("rejected", foreground="#9C95AE")
+        self.tv_c.bind("<<TreeviewSelect>>", lambda e: self.show_clip())
+        self.tv_c.bind("<Double-1>", lambda e: self.play_clip("vertical"))
+
+        right = ttk.Frame(t, style="Card.TFrame", padding=14, width=380)
+        right.pack(side="right", fill="y", padx=(12, 0))
+        right.pack_propagate(False)
+        btns = ttk.Frame(right, style="Card.TFrame")
+        btns.pack(side="bottom", fill="x")  # packed first so the buttons are always visible
+        topbox = ttk.Frame(right, style="Card.TFrame")
+        topbox.pack(fill="both", expand=True)
+        self.c_thumb = tk.Label(topbox, bg=CARD)
+        self.c_thumb.pack(side="left", anchor="n")
+        self.c_info = ttk.Label(topbox, text="เลือกคลิปทางซ้าย", style="Muted.TLabel", wraplength=210,
+                                justify="left")
+        self.c_info.pack(side="left", anchor="nw", fill="both", expand=True, padx=(10, 0))
+        r1 = ttk.Frame(btns, style="Card.TFrame")
+        r1.pack(fill="x", pady=3)
+        ttk.Button(r1, text="▶ แนวตั้ง (TikTok)", command=lambda: self.play_clip("vertical")).pack(
+            side="left", expand=True, fill="x")
+        ttk.Button(r1, text="▶ แนวนอน (YouTube)", command=lambda: self.play_clip("horizontal")).pack(
+            side="left", expand=True, fill="x", padx=(6, 0))
+        ttk.Button(btns, text="คัดลอกชื่อเรื่อง + คำอธิบาย + แฮชแท็ก", style="Accent.TButton",
+                   command=self.copy_upload).pack(fill="x", pady=3)
+        ttk.Button(btns, text="เปิดโฟลเดอร์คลิปนี้", command=self.open_clip_folder).pack(fill="x", pady=3)
+        r2 = ttk.Frame(btns, style="Card.TFrame")
+        r2.pack(fill="x", pady=3)
+        self.clip_status_buttons = {}
+        for status, label in (("approved", "✓ อนุมัติ"), ("posted", "โพสต์แล้ว"),
+                              ("rejected", "ไม่ใช้")):
+            button = ttk.Button(r2, text=label, command=lambda value=status: self.set_status(value))
+            button.pack(side="left", expand=True, fill="x", padx=(0, 6) if status != "rejected" else 0)
+            self.clip_status_buttons[status] = button
+        ttk.Label(btns, text="โพสต์คลิปนี้ตอนนี้", style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
+        r3 = ttk.Frame(btns, style="Card.TFrame")
+        r3.pack(fill="x", pady=3)
+        self.clip_post_buttons = {}
+        for txt, plat in (("YouTube", "youtube"), ("FB Page", "facebook_page"), ("TikTok", "tiktok")):
+            button = ttk.Button(r3, text=txt, command=lambda p=plat: self.post_selected(p))
+            button.pack(side="left", expand=True, fill="x", padx=(0, 4))
+            self.clip_post_buttons[plat] = button
+        ttk.Button(btns, text="Facebook ส่วนตัว (คัดลอกข้อความ + เปิดเฟซบุ๊ก)",
+                   command=self.post_profile_manual).pack(fill="x", pady=3)
+        self._update_clip_buttons(None)
+
+    # ------------------------------------------------------------------ platform workspaces
+    def _build_platforms(self):
+        self.platform_ui = {}
+        self.platform_nav = {}
+        nav = ttk.Frame(self.tab_platforms)
+        nav.pack(fill="x", pady=(0, 8))
+        body = ttk.Frame(self.tab_platforms)
+        body.pack(fill="both", expand=True)
+        for platform, label, default_fmt in WORKSPACES:
+            index = len(self.platform_nav)
+            nav.columnconfigure(index, weight=1, uniform="platform")
+            button = ttk.Button(nav, text=label, style="PlatformNav.TButton",
+                                command=lambda p=platform: self._select_platform(p))
+            button.grid(row=0, column=index, sticky="ew", padx=(0 if index == 0 else 4, 0))
+            self.platform_nav[platform] = button
+            page = ttk.Frame(body)
+            page.place(relx=0, rely=0, relwidth=1, relheight=1)
+            self._build_platform_workspace(page, platform, label, default_fmt)
+        self._select_platform(WORKSPACES[0][0])
+
+    def _select_platform(self, platform):
+        self.active_platform = platform
+        self.platform_ui[platform]["tab"].lift()
+        for name, button in self.platform_nav.items():
+            button.configure(style="PlatformNavSelected.TButton" if name == platform else "PlatformNav.TButton")
+
+    def _build_platform_workspace(self, tab, platform, label, default_fmt):
+        ui = {"platform": platform, "current": None, "script_map": {}, "clip_map": {}}
+        self.platform_ui[platform] = ui
+        canvas = tk.Canvas(tab, bg=BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        window = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        canvas.bind_all("<MouseWheel>", lambda e, p=platform, c=canvas:
+                        c.yview_scroll(int(-e.delta / 120), "units")
+                        if self.nb.select() == str(self.tab_platforms)
+                        and self.active_platform == p else None, add="+")
+        ui["tab"] = tab
+
+        ttk.Label(inner, text="สร้างวิดีโอสำหรับ %s" % label, style="H1.TLabel").pack(anchor="w", pady=(0, 8))
+        notes = {"tiktok": "แนวตั้ง • ส่งเข้าแบบร่าง TikTok แล้วตรวจและกดโพสต์ในแอป",
+                 "youtube": "เลือกแนวตั้ง Shorts หรือแนวนอน • โพสต์ผ่าน YouTube API ที่เชื่อมไว้",
+                 "shopee": "แนวตั้ง • เตรียมไฟล์และข้อความเพื่ออัปโหลดเอง • ตรวจเงื่อนไขเนื้อหา AI ของ Shopee ก่อนโพสต์",
+                 "facebook_profile": "แนวตั้ง • คัดลอกข้อความและโพสต์บนโปรไฟล์ด้วยตนเอง",
+                 "facebook_page": "แนวตั้ง • โพสต์ Reels ผ่าน Facebook Page API ที่เชื่อมไว้"}
+        ttk.Label(inner, text=notes[platform], wraplength=900).pack(anchor="w", pady=(0, 8))
+
+        setup = self.card(inner, fill="x")
+        ttk.Label(setup, text="เลือกเรื่อง แล้วให้พนักงาน AI เตรียมข้อความโพสต์", style="H2.TLabel").pack(
+            anchor="w", pady=(0, 6))
+        row = ttk.Frame(setup, style="Card.TFrame")
+        row.pack(fill="x", pady=(0, 6))
+        ttk.Label(row, text="เรื่อง", style="Card.TLabel", width=8).pack(side="left")
+        ui["script"] = tk.StringVar()
+        ui["script_cb"] = ttk.Combobox(row, textvariable=ui["script"], state="readonly")
+        ui["script_cb"].pack(side="left", fill="x", expand=True)
+        ui["script_cb"].bind("<<ComboboxSelected>>", lambda e, p=platform: self._platform_story_changed(p, True))
+        ttk.Label(setup, text="ข้อความโพสต์ที่เตรียมไว้", style="H2.TLabel").pack(anchor="w", pady=(3, 2))
+        ui["meta_title"] = ttk.Label(setup, text="เลือกเรื่องหรือคลิป", style="Card.TLabel",
+                                      font=(self.F, 11, "bold"), wraplength=1040)
+        ui["meta_title"].pack(anchor="w", fill="x")
+        ui["meta_description"] = ttk.Label(setup, text="", style="Muted.TLabel", wraplength=1040)
+        ui["meta_description"].pack(anchor="w", fill="x", pady=2)
+        ui["meta_tags"] = ttk.Label(setup, text="", style="Card.TLabel", foreground=ACCENT_D, wraplength=1040)
+        ui["meta_tags"].pack(anchor="w", fill="x")
+        row = ttk.Frame(setup, style="Card.TFrame")
+        row.pack(fill="x", pady=(8, 0))
+        ui["format"] = tk.StringVar(value=default_fmt)
+        ttk.Label(row, text="รูปแบบ", style="Card.TLabel", width=8).pack(side="left")
+        formats = ("vertical", "horizontal") if platform == "youtube" else ("vertical",)
+        format_cb = ttk.Combobox(row, textvariable=ui["format"], values=formats, width=16,
+                                 state="readonly")
+        format_cb.pack(side="left")
+        format_cb.bind("<<ComboboxSelected>>", lambda e, p=platform: self._platform_story_changed(p, True))
+        ui["made_for_kids"] = tk.BooleanVar(value=platform != "shopee")
+        ttk.Checkbutton(row, text="สร้างมาเพื่อเด็ก", variable=ui["made_for_kids"]).pack(side="left", padx=16)
+
+        source_card = self.card(inner, fill="x", pady=(10, 0))
+        ttk.Label(source_card, text="เลือกแหล่งวิดีโอ", style="H2.TLabel").pack(anchor="w")
+        choices = ttk.Frame(source_card, style="Card.TFrame")
+        choices.pack(fill="x", pady=(5, 8))
+        ui["source"] = tk.StringVar(value="local")
+        for value, text in (("local", "สร้างในเครื่อง"), ("existing", "คลิป/ไฟล์ที่มี"),
+                            ("flow", "Google Flow (เครดิตบัญชี)"), ("omni", "Google API เสียเงิน")):
+            ttk.Radiobutton(choices, text=text, value=value, variable=ui["source"],
+                            style="Card.TRadiobutton",
+                            command=lambda p=platform: self._platform_source_changed(p)).pack(side="left", padx=(0, 18))
+        source_body = ttk.Frame(source_card, style="Card.TFrame")
+        source_body.pack(fill="x")
+        ui["panels"] = {}
+        for value in ("local", "existing", "flow", "omni"):
+            ui["panels"][value] = ttk.Frame(source_body, style="Card.TFrame")
+
+        panel = ui["panels"]["local"]
+        ttk.Label(panel, text="ใช้บทที่เลือกด้านบน สร้างคลิปด้วยระบบในเครื่อง", style="Muted.TLabel").pack(
+            side="left", padx=(0, 12))
+        ttk.Button(panel, text="สร้างคลิปจากบทนี้", style="Accent.TButton",
+                   command=lambda p=platform: self.platform_render_local(p)).pack(side="left", pady=5)
+
+        panel = ui["panels"]["existing"]
+        ttk.Label(panel, text="ใช้คลิปในคลัง หรือเลือกไฟล์วิดีโอจากเครื่องเพื่อแปลงและนำเข้า",
+                  style="Muted.TLabel").pack(anchor="w")
+        row = ttk.Frame(panel, style="Card.TFrame")
+        row.pack(fill="x", pady=5)
+        ui["clip_choice"] = tk.StringVar()
+        ui["clip_cb"] = ttk.Combobox(row, textvariable=ui["clip_choice"], width=58, state="readonly")
+        ui["clip_cb"].pack(side="left")
+        ttk.Button(row, text="ใช้คลิปนี้", command=lambda p=platform: self.platform_choose_clip(p)).pack(
+            side="left", padx=6)
+        ttk.Button(row, text="นำเข้าไฟล์วิดีโอ...", command=lambda p=platform: self.platform_import(p, "computer")).pack(
+            side="left")
+
+        panel = ui["panels"]["flow"]
+        ttk.Label(panel, text="Flow ใช้เครดิตของบัญชี Google • สร้างในเว็บ ดาวน์โหลด แล้วนำไฟล์กลับเข้าคลัง",
+                  style="Muted.TLabel").pack(anchor="w")
+        row = ttk.Frame(panel, style="Card.TFrame")
+        row.pack(fill="x", pady=(5, 0))
+        ttk.Label(row, text="พรอมต์", style="Card.TLabel").pack(side="left")
+        ui["flow_part"] = tk.StringVar()
+        ui["flow_part_cb"] = ttk.Combobox(row, textvariable=ui["flow_part"], state="readonly", width=28)
+        ui["flow_part_cb"].pack(side="left", padx=6)
+        ui["flow_part_cb"].bind("<<ComboboxSelected>>", lambda e, p=platform: self._platform_flow_part_changed(p))
+        ui["flow_prompt"] = tk.Text(panel, height=3, wrap="word", font=(self.F, 10))
+        ui["flow_prompt"].pack(fill="x", pady=5)
+        row = ttk.Frame(panel, style="Card.TFrame")
+        row.pack(anchor="w")
+        ttk.Button(row, text="คัดลอกพรอมต์ + เปิด Google Flow",
+                   command=lambda p=platform: self.platform_open_flow(p)).pack(side="left")
+        ttk.Button(row, text="นำเข้าคลิปที่ดาวน์โหลด...", style="Accent.TButton",
+                   command=lambda p=platform: self.platform_import(p, "google_flow")).pack(side="left", padx=8)
+        ttk.Label(panel, text="ใน Flow เลือก Agent สำหรับทั้งเรื่อง หรือ Video สำหรับฉากเดียว → Ctrl+V และสร้าง "
+                              "→ รวมหลายช็อตใน Scenebuilder → ดาวน์โหลด MP4 → กลับมานำเข้า (ตรวจเครดิตก่อนสร้าง)",
+                  style="Muted.TLabel", wraplength=1000).pack(anchor="w", pady=(6, 0))
+
+        panel = ui["panels"]["omni"]
+        ttk.Label(panel, text="พรอมต์สร้างอัตโนมัติจากเรื่องที่เลือก • Gemini Omni Flash สร้างคลิป 3–10 วินาที",
+                  style="Muted.TLabel").pack(anchor="w")
+        ui["omni_prompt"] = tk.Text(panel, height=3, wrap="word", font=(self.F, 10))
+        ui["omni_prompt"].pack(fill="x", pady=5)
+        row = ttk.Frame(panel, style="Card.TFrame")
+        row.pack(fill="x")
+        ttk.Label(row, text="ความละเอียด", style="Card.TLabel").pack(side="left", padx=(10, 0))
+        ui["resolution"] = tk.StringVar(value="720p")
+        ttk.Combobox(row, textvariable=ui["resolution"], values=("360p", "720p", "1080p", "4k"),
+                     state="readonly", width=8).pack(side="left", padx=6)
+        ttk.Button(row, text="สร้างด้วย Google (มีค่าใช้จ่าย)", style="Accent.TButton",
+                   command=lambda p=platform: self.platform_generate_google(p)).pack(side="left", padx=8)
+        ttk.Button(row, text="ดูราคา Google",
+                   command=lambda: open_path("https://ai.google.dev/gemini-api/docs/pricing")).pack(side="left")
+        ttk.Button(row, text="ตั้งค่า Gemini key", command=lambda: self.nb.select(self.tab_set)).pack(side="left", padx=6)
+        ttk.Label(panel, text="ตั้งค่า Gemini API key ครั้งเดียวในแท็บตั้งค่า; ตรวจราคาปัจจุบันก่อนกดสร้าง",
+                  style="Muted.TLabel").pack(anchor="w", pady=(5, 0))
+        self._platform_source_changed(platform)
+
+        selected = self.card(inner, fill="x", pady=(10, 0))
+        ttk.Label(selected, text="คลิปที่เลือกสำหรับ %s" % label, style="H2.TLabel").pack(anchor="w")
+        ui["current_label"] = ttk.Label(selected, text="ยังไม่ได้เลือกคลิป", style="Muted.TLabel", wraplength=900)
+        ui["current_label"].pack(anchor="w", pady=(3, 6))
+        row = ttk.Frame(selected, style="Card.TFrame")
+        row.pack(fill="x")
+        for text, command in (("▶ ดูคลิป", lambda p=platform: self.platform_play(p)),
+                              ("เปิดโฟลเดอร์", lambda p=platform: self.platform_open_folder(p)),
+                              ("AI เขียนข้อความโพสต์", lambda p=platform: self.platform_ai_caption(p)),
+                              ("คัดลอกข้อความโพสต์", lambda p=platform: self.platform_copy_caption(p)),
+                              ("✓ อนุมัติ", lambda p=platform: self.platform_approve(p))):
+            ttk.Button(row, text=text, command=command).pack(side="left", padx=(0, 6))
+        text = "โพสต์ไปที่ %s" % label if platform in ("youtube", "facebook_page") else (
+            "ส่งเข้าแบบร่าง TikTok" if platform == "tiktok" else "เปิด %s เพื่อโพสต์เอง" % label)
+        ttk.Button(selected, text=text, style="Accent.TButton",
+                   command=lambda p=platform: self.platform_publish(p)).pack(anchor="w", pady=(8, 0))
+        if platform in ("youtube", "facebook_page", "tiktok"):
+            ttk.Button(selected, text="ตั้งค่าการเชื่อมบัญชี...",
+                       command=lambda: self.nb.select(self.tab_post)).pack(anchor="w", pady=(6, 0))
+        else:
+            ttk.Button(selected, text="ยืนยันว่าโพสต์แล้ว",
+                       command=lambda p=platform: self.platform_mark_posted(p)).pack(anchor="w", pady=(6, 0))
+
+    def _platform_source_changed(self, platform):
+        ui = self.platform_ui[platform]
+        for panel in ui["panels"].values():
+            panel.pack_forget()
+        ui["panels"][ui["source"].get()].pack(fill="x")
+
+    def refresh_platform_workspaces(self):
+        if not hasattr(self, "platform_ui"):
+            return
+        scripts = []
+        story_paths = list(self._inbox()) + sorted((ROOT / "scripts" / "done").glob("**/*.json"), reverse=True)
+        for path in story_paths:
+            try:
+                title = scriptmod.load(path).get("title", path.stem)
+            except Exception:
+                title = path.stem
+            scripts.append(("%s  [%s]" % (title, path.name), path))
+        clips = [("%s  [%s]" % (meta.get("title", folder.name), folder.name), folder)
+                 for _, folder, meta in self._clips()]
+        for ui in self.platform_ui.values():
+            ui["script_map"] = dict(scripts)
+            ui["clip_map"] = dict(clips)
+            ui["script_cb"].configure(values=[name for name, _ in scripts])
+            ui["clip_cb"].configure(values=[name for name, _ in clips])
+            if ui["script"].get() not in ui["script_map"]:
+                ui["script"].set(scripts[0][0] if scripts else "")
+            if ui["clip_choice"].get() not in ui["clip_map"]:
+                ui["clip_choice"].set(clips[0][0] if clips else "")
+            if ui["current"] and not (ui["current"] / "meta.json").exists():
+                ui["current"] = None
+            self._platform_story_changed(ui["platform"])
+            self._platform_update_current(ui)
+
+    def _platform_story_changed(self, platform, force=False):
+        from .platform_workspace import flow_prompts_from_script, prompt_from_script
+        ui = self.platform_ui[platform]
+        path = ui["script_map"].get(ui["script"].get())
+        if not path:
+            return
+        if ui.get("story_path") == path and not force:
+            return
+        sc = scriptmod.load(path)
+        ui["story_path"] = path
+        if force:
+            ui["current"] = None
+            ui["current_label"].configure(text="ยังไม่ได้เลือกคลิป")
+        self._platform_show_metadata(ui, sc)
+        ui["flow_prompts"] = dict(flow_prompts_from_script(sc, ui["format"].get()))
+        ui["flow_part_cb"].configure(values=list(ui["flow_prompts"]))
+        ui["flow_part"].set(next(iter(ui["flow_prompts"])))
+        self._platform_flow_part_changed(platform)
+        widget = ui["omni_prompt"]
+        widget.delete("1.0", "end")
+        widget.insert("1.0", prompt_from_script(sc, platform, ui["format"].get()))
+
+    def _platform_flow_part_changed(self, platform):
+        ui = self.platform_ui[platform]
+        widget = ui["flow_prompt"]
+        widget.delete("1.0", "end")
+        widget.insert("1.0", ui.get("flow_prompts", {}).get(ui["flow_part"].get(), ""))
+
+    def _platform_show_metadata(self, ui, meta):
+        caption = (meta.get("platform_captions") or {}).get(ui["platform"], meta)
+        ui["meta_title"].configure(text=caption.get("title") or "AI กำลังร่างชื่อเรื่อง")
+        ui["meta_description"].configure(text=caption.get("description") or "AI ยังไม่ได้เขียนคำอธิบายจากคลิปนี้")
+        ui["meta_tags"].configure(text=" ".join("#" + str(t).lstrip("#") for t in caption.get("tags", [])))
+
+    def _platform_update_current(self, ui):
+        folder = ui["current"]
+        if not folder:
+            ui["current_label"].configure(text="ยังไม่ได้เลือกคลิป")
+            return
+        meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+        self._platform_show_metadata(ui, meta)
+        post = (meta.get("posts") or {}).get(ui["platform"], {})
+        posted = "  •  ส่งเข้าแบบร่างแล้ว" if post.get("status") == "draft_sent" else (
+            "  •  โพสต์แล้ว" if post.get("status") == "posted" else "")
+        ui["current_label"].configure(text="%s  •  %.0f วินาที  •  %s%s  •  %s" % (
+            meta.get("title", folder.name), float(meta.get("duration_seconds", 0)),
+            STATUS_TH.get(meta.get("status"), meta.get("status", "")), posted, folder))
+
+    def _platform_select_folder(self, platform, folder):
+        ui = self.platform_ui[platform]
+        folder = Path(folder)
+        if (folder / "meta.json").exists():
+            ui["current"] = folder
+            self._platform_update_current(ui)
+
+    def platform_choose_clip(self, platform):
+        from .credential_store import load_key
+        ui = self.platform_ui[platform]
+        folder = ui["clip_map"].get(ui["clip_choice"].get())
+        if folder:
+            self._platform_select_folder(platform, folder)
+            meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+            if platform not in (meta.get("platform_captions") or {}) and load_key():
+                self.platform_ai_caption(platform)
+
+    def platform_render_local(self, platform):
+        ui = self.platform_ui[platform]
+        path = ui["script_map"].get(ui["script"].get())
+        if not path:
+            messagebox.showinfo("สร้างคลิป", "ยังไม่มีบทในแท็บ บท")
+            return
+        sc = scriptmod.load(path)
+        folder = ROOT / "output" / dt.date.today().isoformat() / sc["id"]
+        if self._start(["render", str(path), "--format", ui["format"].get()],
+                       "กำลังสร้างคลิปสำหรับ %s" % platform):
+            from .credential_store import load_key
+            self._single = path
+            self._platform_pending = (platform, folder)
+            self._platform_auto_caption = bool(load_key())
+            self.job_total = 1
+
+    def _platform_metadata_args(self, platform, fallback_title=""):
+        ui = self.platform_ui[platform]
+        path = ui["script_map"].get(ui["script"].get())
+        sc = scriptmod.load(path) if path else {}
+        title = sc.get("title", "").strip() or fallback_title
+        if not title:
+            raise ValueError("เลือกเรื่องก่อนสร้างคลิป")
+        tags = [str(x).strip().lstrip("#") for x in sc.get("tags", []) if str(x).strip()]
+        args = ["--platform", platform, "--title", title, "--description", sc.get("description", ""),
+                "--tags", *tags, "--format", ui["format"].get()]
+        if ui["made_for_kids"].get():
+            args.append("--made-for-kids")
+        return args
+
+    def platform_import(self, platform, source):
+        file = filedialog.askopenfilename(title="เลือกไฟล์วิดีโอ", filetypes=[
+            ("วิดีโอ", "*.mp4 *.mov *.mkv *.webm *.avi"), ("ทุกไฟล์", "*.*")])
+        if not file:
+            return
+        try:
+            if source == "computer":
+                args = ["import-video", file, "--platform", platform, "--title", Path(file).stem,
+                        "--format", self.platform_ui[platform]["format"].get()]
+                if self.platform_ui[platform]["made_for_kids"].get():
+                    args.append("--made-for-kids")
+            else:
+                args = ["import-video", file] + self._platform_metadata_args(platform, Path(file).stem)
+        except ValueError as e:
+            messagebox.showwarning("นำเข้าคลิป", str(e))
+            return
+        args += ["--source", source]
+        if source == "google_flow":
+            args += ["--ai-generated", "--prompt", self.platform_ui[platform]["flow_prompt"].get("1.0", "end").strip()]
+        from .credential_store import load_key
+        key = load_key()
+        if self._start(args, "กำลังนำเข้าคลิปสำหรับ %s" % platform,
+                       env_updates={"GEMINI_API_KEY": key} if key else None):
+            self._platform_pending = (platform, None)
+            self._platform_auto_caption = bool(key)
+            self.job_total = 1
+
+    def platform_open_flow(self, platform):
+        prompt = self.platform_ui[platform]["flow_prompt"].get("1.0", "end").strip()
+        if prompt:
+            self.clipboard_clear()
+            self.clipboard_append(prompt)
+        open_path("https://flow.google.com/")
+        self.say("คัดลอกพรอมต์แล้ว เปิด Flow ใช้ Agent สำหรับทั้งเรื่อง หรือเลือกพรอมต์ทีละฉาก; ดาวน์โหลดแล้วนำเข้าคลิป", "good")
+
+    def platform_generate_google(self, platform):
+        ui = self.platform_ui[platform]
+        prompt = ui["omni_prompt"].get("1.0", "end").strip()
+        from .credential_store import load_key
+        key = load_key()
+        if not key:
+            messagebox.showwarning("Google API", "ใส่ Gemini API key ที่เปิดชำระเงินก่อน")
+            return
+        if not prompt:
+            messagebox.showwarning("Google API", "ใส่พรอมต์อธิบายวิดีโอก่อน")
+            return
+        try:
+            args = ["google-video"] + self._platform_metadata_args(platform) + [
+                "--prompt", prompt, "--resolution", ui["resolution"].get()]
+        except ValueError as e:
+            messagebox.showwarning("Google API", str(e))
+            return
+        if not messagebox.askyesno("ยืนยันค่าใช้จ่าย", "Google Gemini Omni Flash API คิดเงินตามการใช้งานจริง\n"
+                                   "ต้องการส่งคำขอนี้เพื่อสร้างวิดีโอหรือไม่?"):
+            return
+        if self._start(args, "กำลังสร้างคลิปด้วย Google", env_updates={"GEMINI_API_KEY": key}):
+            self._platform_pending = (platform, None)
+            self._platform_auto_caption = True
+            self.job_total = 1
+
+    def _platform_current(self, platform):
+        folder = self.platform_ui[platform]["current"]
+        if not folder or not (folder / "meta.json").exists():
+            messagebox.showinfo("เลือกคลิป", "เลือกหรือสร้างคลิปก่อน")
+            return None, None
+        return folder, json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+
+    def platform_play(self, platform):
+        folder, meta = self._platform_current(platform)
+        if not folder:
+            return
+        files = meta.get("files") or {}
+        fmt = (meta.get("platform_formats") or {}).get(platform) or self.platform_ui[platform]["format"].get()
+        name = files.get(fmt) or files.get("vertical") or files.get("horizontal")
+        if name and (folder / name).exists():
+            open_path(folder / name)
+        else:
+            messagebox.showwarning("ดูคลิป", "ไม่พบไฟล์วิดีโอ")
+
+    def platform_open_folder(self, platform):
+        folder, _ = self._platform_current(platform)
+        if folder:
+            open_path(folder)
+
+    def platform_copy_caption(self, platform):
+        from . import publish
+        folder, meta = self._platform_current(platform)
+        if folder:
+            self._copy(publish.caption(meta, platform))
+
+    def platform_ai_caption(self, platform):
+        from .credential_store import load_key
+        folder, _ = self._platform_current(platform)
+        if not folder:
+            return
+        key = load_key()
+        if not key:
+            messagebox.showinfo("ตั้งค่า AI", "ตั้ง Gemini API key หนึ่งครั้งในแท็บ ตั้งค่า ก่อน")
+            self.nb.select(self.tab_set)
+            return
+        if self._start(["caption-video", "--folder", str(folder), "--platform", platform],
+                       "AI กำลังเขียนข้อความโพสต์", env_updates={"GEMINI_API_KEY": key}):
+            self._platform_pending = (platform, folder)
+            self.job_total = 1
+
+    def platform_approve(self, platform):
+        folder, meta = self._platform_current(platform)
+        if not folder:
+            return
+        self._save_clip_status(folder, meta, "approved")
+        self._platform_update_current(self.platform_ui[platform])
+        self.refresh_clips()
+        self.refresh_stats()
+
+    def platform_publish(self, platform):
+        from . import publish
+        folder, meta = self._platform_current(platform)
+        if not folder:
+            return
+        caption_data = (meta.get("platform_captions") or {}).get(platform, meta)
+        if not all(caption_data.get(k) for k in ("title", "description", "tags")):
+            messagebox.showwarning("ข้อความโพสต์ยังไม่พร้อม", "ให้ AI เขียนชื่อเรื่อง คำอธิบาย และแฮชแท็กก่อนโพสต์")
+            return
+        if meta.get("status") not in ("approved", "posted"):
+            if not messagebox.askyesno("ตรวจและโพสต์", "ตรวจภาพและเสียงของคลิปแล้ว พร้อมโพสต์ไปที่ %s หรือไม่?" % platform):
+                return
+            self._save_clip_status(folder, meta, "approved")
+        if platform in ("shopee", "facebook_profile"):
+            self._copy(publish.caption(meta, platform))
+            open_path(folder)
+            open_path("https://shopee.co.th/" if platform == "shopee" else "https://www.facebook.com/")
+            self.say("เปิดไฟล์และเว็บไซต์แล้ว อัปโหลดและตรวจรายละเอียดด้วยตนเอง", "good")
+        else:
+            self.post_folder(folder, platform, confirmed=meta.get("status") not in ("approved", "posted"))
+
+    def platform_mark_posted(self, platform):
+        folder, meta = self._platform_current(platform)
+        if not folder:
+            return
+        if not messagebox.askyesno("ยืนยันการโพสต์", "คุณโพสต์คลิปนี้บน %s เรียบร้อยแล้วใช่ไหม?" % platform):
+            return
+        url = simpledialog.askstring("ลิงก์โพสต์", "วางลิงก์โพสต์ (เว้นว่างได้)")
+        if url is None:
+            return
+        meta.setdefault("posts", {})[platform] = {"status": "posted", "manual": True,
+                                                   "url": url.strip(),
+                                                   "at": dt.datetime.now().isoformat(timespec="seconds")}
+        (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._platform_update_current(self.platform_ui[platform])
+        self.refresh_clips()
+        self.say("บันทึกว่าโพสต์บน %s แล้ว" % platform, "good")
+
+    def _update_clip_buttons(self, meta):
+        status = meta.get("status") if meta else None
+        status_styles = {"approved": "Selected.TButton", "posted": "Posted.TButton",
+                         "rejected": "Rejected.TButton"}
+        for value, button in self.clip_status_buttons.items():
+            button.configure(style=status_styles.get(value, "TButton") if value == status else "TButton")
+        posts = (meta.get("posts") or {}) if meta else {}
+        for platform, button in self.clip_post_buttons.items():
+            post_status = posts.get(platform, {}).get("status")
+            style = {"posted": "Posted.TButton", "draft_sent": "Draft.TButton"}.get(post_status,
+                                                                                       "TButton")
+            button.configure(style=style)
+
+    def _clips(self):
+        out = []
+        base = ROOT / "output"
+        if not base.exists():
+            return out
+        for day in sorted([d for d in base.iterdir() if d.is_dir()], reverse=True):
+            for clip in sorted([c for c in day.iterdir() if c.is_dir()]):
+                m = clip / "meta.json"
+                if m.exists():
+                    try:
+                        out.append((day.name, clip, json.loads(m.read_text(encoding="utf-8"))))
+                    except Exception:
+                        pass
+        return out
+
+    def refresh_clips(self):
+        selected = self.tv_c.selection()
+        self.tv_c.delete(*self.tv_c.get_children())
+        want = self.clip_filter.get()
+        self._clip_cache = {}
+        for day, folder, meta in self._clips():
+            st = STATUS_TH.get(meta.get("status"), meta.get("status", ""))
+            if meta.get("needs_review") and meta.get("status") == "ready_for_approval":
+                st = "รอตรวจ (มีคำเตือน)"
+            if want != "ทั้งหมด" and not st.startswith(want):
+                continue
+            tag = {"posted": "posted", "rejected": "rejected"}.get(meta.get("status"),
+                                                                    "warn" if meta.get("needs_review") else "")
+            dur = "%d วิ" % round(meta.get("duration_seconds", 0))
+            short = {"youtube": "YT", "facebook_page": "FB", "tiktok": "TT",
+                     "facebook_profile": "FP", "shopee": "SP"}
+            done = " ".join(short[k] for k, v in (meta.get("posts") or {}).items()
+                            if k in short and v.get("status") in ("posted", "draft_sent"))
+            self.tv_c.insert("", "end", iid=str(folder), values=(day, meta.get("title", folder.name), dur, st, done),
+                             tags=(tag,))
+            self._clip_cache[str(folder)] = meta
+        if selected and self.tv_c.exists(selected[0]):
+            self.tv_c.selection_set(selected[0])
+            self.show_clip()
+        else:
+            self._update_clip_buttons(None)
+
+    def _sel_clip(self):
+        s = self.tv_c.selection()
+        return (Path(s[0]), self._clip_cache.get(s[0])) if s else (None, None)
+
+    def show_clip(self):
+        folder, meta = self._sel_clip()
+        if not folder:
+            self._update_clip_buttons(None)
+            return
+        self._update_clip_buttons(meta)
+        th = folder / "thumb_vertical.jpg"
+        if th.exists():
+            im = Image.open(th)
+            im.thumbnail((120, 213))
+            ph = ImageTk.PhotoImage(im)
+            self._img_refs = [ph]
+            self.c_thumb.configure(image=ph)
+        else:
+            self.c_thumb.configure(image="")
+        txt = "%s\n\nความยาว %.0f วินาที   เสียง: %s\n%s" % (
+            meta.get("title", ""), meta.get("duration_seconds", 0), ", ".join(meta.get("voice_engines", [])),
+            meta.get("description", ""))
+        if meta.get("needs_review"):
+            txt += "\n\nต้องตรวจ:\n- " + "\n- ".join(meta["needs_review"])
+        posts = meta.get("posts") or {}
+        if posts:
+            names = {"youtube": "YouTube", "facebook_page": "FB Page", "tiktok": "TikTok",
+                     "facebook_profile": "Facebook Profile", "shopee": "Shopee"}
+            stx = {"posted": "โพสต์แล้ว", "draft_sent": "ส่งเข้าแบบร่างแล้ว", "failed": "ไม่สำเร็จ"}
+            txt += "\n\nการโพสต์:"
+            for k, v in posts.items():
+                txt += "\n- %s: %s %s" % (names.get(k, k), stx.get(v.get("status"), v.get("status", "")),
+                                          v.get("url") or v.get("error", "")[:80])
+        self.c_info.configure(text=txt)
+
+    def play_clip(self, fmt):
+        folder, meta = self._sel_clip()
+        if not folder:
+            return
+        name = meta.get("files", {}).get(fmt)
+        if not name or not (folder / name).exists():
+            messagebox.showinfo("เล่นคลิป", "ไม่มีคลิปแบบนี้ (อาจตั้งค่าให้สร้างเฉพาะบางแบบ)")
+            return
+        open_path(folder / name)
+
+    def copy_upload(self):
+        folder, _ = self._sel_clip()
+        if not folder:
+            return
+        p = folder / "upload.txt"
+        if p.exists():
+            self.clipboard_clear()
+            self.clipboard_append(p.read_text(encoding="utf-8"))
+            self.say("คัดลอกข้อความโพสต์แล้ว วางในช่องคำอธิบายได้เลย", "good")
+
+    def open_clip_folder(self):
+        folder, _ = self._sel_clip()
+        if folder:
+            open_path(folder)
+
+    def set_status(self, status):
+        folder, meta = self._sel_clip()
+        if not folder:
+            return
+        self._save_clip_status(folder, meta, status)
+        self.refresh_clips()
+        if self.tv_c.exists(str(folder)):
+            self.tv_c.selection_set(str(folder))
+            self.show_clip()
+        self.refresh_stats()
+
+    def _save_clip_status(self, folder, meta, status):
+        meta["status"] = status
+        meta["status_changed"] = dt.datetime.now().isoformat(timespec="seconds")
+        if status == "approved" and meta.get("source") in ("computer", "google_flow", "google_omni"):
+            meta["needs_review"] = [item for item in meta.get("needs_review", [])
+                                    if item != "ตรวจภาพ เสียง และข้อความก่อนเผยแพร่"]
+        (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # ------------------------------------------------------------------ schedule tab
+    def _build_sched(self):
+        t = self.tab_sched
+        ttk.Label(t, text="ตั้งเวลาสร้างคลิปอัตโนมัติ", style="H1.TLabel").pack(anchor="w", pady=(0, 10))
+        c = self.card(t, fill="x")
+        ttk.Label(c, text="Windows จะสร้างคลิปจากบททั้งหมดในแท็บ \"บท\" ทุกวันตามเวลานี้",
+                  style="Card.TLabel").pack(anchor="w")
+        self.sched_now = ttk.Label(c, text="", style="H2.TLabel")
+        self.sched_now.pack(anchor="w", pady=(8, 12))
+        row = ttk.Frame(c, style="Card.TFrame")
+        row.pack(anchor="w")
+        ttk.Label(row, text="เวลา", style="Card.TLabel").pack(side="left")
+        self.hh = tk.StringVar(value="07")
+        self.mm = tk.StringVar(value="00")
+        ttk.Spinbox(row, from_=0, to=23, width=4, textvariable=self.hh, format="%02.0f", wrap=True,
+                    font=(self.F, 14)).pack(side="left", padx=(10, 2))
+        ttk.Label(row, text=":", style="Card.TLabel", font=(self.F, 14, "bold")).pack(side="left")
+        ttk.Spinbox(row, from_=0, to=59, increment=5, width=4, textvariable=self.mm, format="%02.0f",
+                    wrap=True, font=(self.F, 14)).pack(side="left", padx=(2, 12))
+        ttk.Button(row, text="บันทึกเวลา", style="Accent.TButton", command=self.save_schedule).pack(side="left")
+        ttk.Button(row, text="ปิดการสร้างอัตโนมัติ", style="Danger.TButton", command=self.remove_schedule).pack(
+            side="left", padx=8)
+
+        c2 = self.card(t, fill="x", pady=(12, 0))
+        ttk.Label(c2, text="งานเขียนบทใน Claude", style="H2.TLabel").pack(anchor="w")
+        ttk.Label(c2, wraplength=1000, justify="left", style="Card.TLabel",
+                  text="ถ้าตั้งงาน Claude ไว้ที่ 06:22 ให้ตรวจหรือเปลี่ยนเวลาในแอป Claude → เมนู \"งานตามกำหนดเวลา\"\n"
+                       "ควรตั้งเวลาสร้างคลิปให้หลังเวลาเขียนบทอย่างน้อย 30 นาที").pack(anchor="w", pady=(6, 0))
+        c3 = self.card(t, fill="x", pady=(12, 0))
+        ttk.Label(c3, text="ข้อควรรู้", style="H2.TLabel").pack(anchor="w")
+        ttk.Label(c3, wraplength=1000, justify="left", style="Card.TLabel",
+                  text="• คอมพิวเตอร์ต้องเปิดอยู่ (ไม่ Sleep) ตอนถึงเวลา และสำหรับงานของ Claude ต้องเปิดแอป Claude ค้างไว้\n"
+                       "• ถ้าเครื่องปิดตอนถึงเวลา รอบนั้นจะข้าม บทจะยังรออยู่ในแท็บ \"บท\" กดสร้างเองได้").pack(
+            anchor="w", pady=(6, 0))
+
+    def _ps(self, cmd):
+        if not IS_WIN:
+            return ""
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, **NOWIN)
+        return r.stdout.strip()
+
+    def refresh_schedule(self):
+        def work():
+            if not IS_WIN:
+                self.q.put(("sched", None))
+                return
+            out = self._ps(
+                "$t = Get-ScheduledTask -TaskName '%s' -ErrorAction SilentlyContinue; "
+                "if ($t) { $i = Get-ScheduledTaskInfo -TaskName '%s'; "
+                "([datetime]$t.Triggers[0].StartBoundary).ToString('HH:mm') + '|' + "
+                "$i.NextRunTime.ToString('yyyy-MM-dd HH:mm') + '|' + $t.State }" % (TASK_NAME, TASK_NAME))
+            self.q.put(("sched", out or None))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def save_schedule(self):
+        try:
+            h, m = int(self.hh.get()), int(self.mm.get())
+            assert 0 <= h <= 23 and 0 <= m <= 59
+        except Exception:
+            messagebox.showwarning("ตั้งเวลา", "เวลาไม่ถูกต้อง")
+            return
+        hhmm = "%02d:%02d" % (h, m)
+        if not IS_WIN:
+            messagebox.showinfo("ตั้งเวลา", "ใช้ได้บน Windows เท่านั้น")
+            return
+        (ROOT / "logs").mkdir(exist_ok=True)
+        bat = ROOT / "run_batch_auto.bat"
+        r = subprocess.run(["schtasks", "/Create", "/F", "/TN", TASK_NAME, "/SC", "DAILY", "/ST", hhmm,
+                            "/TR", '"%s"' % bat], capture_output=True, text=True, **NOWIN)
+        if r.returncode == 0:
+            self.say("ตั้งเวลาสร้างคลิปทุกวัน %s แล้ว" % hhmm, "good")
+        else:
+            self.say("ตั้งเวลาไม่สำเร็จ: %s" % (r.stdout + r.stderr).strip(), "bad")
+        self.refresh_schedule()
+
+    def remove_schedule(self):
+        if not messagebox.askyesno("ปิดการสร้างอัตโนมัติ", "หยุดให้ Windows สร้างคลิปเองทุกวัน?"):
+            return
+        if IS_WIN:
+            subprocess.run(["schtasks", "/Delete", "/F", "/TN", TASK_NAME], capture_output=True, **NOWIN)
+        self.say("ปิดการสร้างอัตโนมัติแล้ว")
+        self.refresh_schedule()
+
+    # ------------------------------------------------------------------ settings tab
+    def _build_settings(self):
+        t = self.tab_set
+        canvas = tk.Canvas(t, bg=BG, highlightthickness=0)
+        sb = ttk.Scrollbar(t, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        win = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units")
+                        if self.nb.select() == str(self.tab_set) else None, add="+")
+
+        c = self.cfg
+        self.v = {}
+        g = self.card(inner, fill="x")
+        ttk.Label(g, text="ช่องและคลิป", style="H2.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.v["channel_name"] = tk.StringVar(value=c.get("channel_name", ""))
+        self.v["outro_text"] = tk.StringVar(value=c.get("outro_text", ""))
+        self.v["vertical"] = tk.BooleanVar(value="vertical" in c["video"]["formats"])
+        self.v["horizontal"] = tk.BooleanVar(value="horizontal" in c["video"]["formats"])
+        self.v["music_volume"] = tk.DoubleVar(value=float(c["audio"]["music_volume"]))
+        rows = [("ชื่อช่อง (แสดงมุมซ้ายบน)", ttk.Entry(g, textvariable=self.v["channel_name"], width=40)),
+                ("ข้อความปิดท้าย", ttk.Entry(g, textvariable=self.v["outro_text"], width=40))]
+        for i, (lbl, w) in enumerate(rows, 1):
+            ttk.Label(g, text=lbl, style="Card.TLabel").grid(row=i, column=0, sticky="w", pady=4)
+            w.grid(row=i, column=1, sticky="w", padx=10)
+        ttk.Label(g, text="สร้างแบบ", style="Card.TLabel").grid(row=3, column=0, sticky="w", pady=4)
+        fr = ttk.Frame(g, style="Card.TFrame")
+        fr.grid(row=3, column=1, sticky="w", padx=10)
+        ttk.Checkbutton(fr, text="แนวตั้ง (TikTok / Shorts)", variable=self.v["vertical"]).pack(side="left")
+        ttk.Checkbutton(fr, text="แนวนอน (YouTube)", variable=self.v["horizontal"]).pack(side="left", padx=12)
+        ttk.Label(g, text="ความดังเพลงประกอบ", style="Card.TLabel").grid(row=4, column=0, sticky="w", pady=4)
+        ttk.Scale(g, from_=0.0, to=0.4, variable=self.v["music_volume"], length=260).grid(row=4, column=1,
+                                                                                        sticky="w", padx=10)
+
+        vb = self.card(inner, fill="x", pady=(12, 0))
+        ttk.Label(vb, text="เสียงตัวละคร", style="H2.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(vb, text="ความสูงเสียง: + สูงขึ้น / - ต่ำลง     ความเร็ว: + เร็วขึ้น / - ช้าลง",
+                  style="Muted.TLabel").grid(row=1, column=0, columnspan=5, sticky="w", pady=(0, 8))
+        for j, h in enumerate(("ตัวละคร", "เสียง", "ความสูงเสียง (Hz)", "ความเร็ว (%)", "")):
+            ttk.Label(vb, text=h, style="Muted.TLabel").grid(row=2, column=j, sticky="w", padx=6)
+        self.voice_vars = {}
+        for i, who in enumerate(["narrator", "bunny", "bear", "chick", "cat"], 3):
+            vc = c["voices"].get(who, {})
+            nv = tk.StringVar(value=vc.get("edge", VOICE_CHOICES[0]))
+            pv = tk.IntVar(value=int(str(vc.get("pitch", "+0Hz")).replace("Hz", "")))
+            rv = tk.IntVar(value=int(str(vc.get("rate", "+0%")).replace("%", "")))
+            self.voice_vars[who] = (nv, pv, rv)
+            ttk.Label(vb, text=CHAR_NAMES[who], style="Card.TLabel").grid(row=i, column=0, sticky="w", padx=6, pady=3)
+            ttk.Combobox(vb, textvariable=nv, values=VOICE_CHOICES, state="readonly", width=24).grid(
+                row=i, column=1, padx=6)
+            ttk.Spinbox(vb, from_=-50, to=100, increment=5, textvariable=pv, width=6).grid(row=i, column=2, padx=6)
+            ttk.Spinbox(vb, from_=-50, to=50, increment=5, textvariable=rv, width=6).grid(row=i, column=3, padx=6)
+            ttk.Button(vb, text="ฟังเสียง", command=lambda w=who: self.test_voice(w)).grid(row=i, column=4, padx=6)
+
+        ab = self.card(inner, fill="x", pady=(12, 0))
+        ttk.Label(ab, text="เสียงแบบใช้เชิงพาณิชย์ (Azure Speech) - ใส่เมื่อพร้อมเปิดสร้างรายได้",
+                  style="H2.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        self.v["azure_key"] = tk.StringVar(value=c["tts"].get("azure_key", ""))
+        self.v["azure_region"] = tk.StringVar(value=c["tts"].get("azure_region", "southeastasia"))
+        ttk.Label(ab, text="คีย์", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=4)
+        ttk.Entry(ab, textvariable=self.v["azure_key"], width=44, show="•").grid(row=1, column=1, sticky="w", padx=10)
+        ttk.Label(ab, text="ภูมิภาค", style="Card.TLabel").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Entry(ab, textvariable=self.v["azure_region"], width=20).grid(row=2, column=1, sticky="w", padx=10)
+
+        from .credential_store import KEY_FILE
+        ai = self.card(inner, fill="x", pady=(12, 0))
+        ttk.Label(ai, text="พนักงาน AI เขียนข้อความโพสต์ (Google Gemini)", style="H2.TLabel").pack(anchor="w")
+        ttk.Label(ai, text="ใส่คีย์ครั้งเดียวเพื่อให้ AI เขียนชื่อเรื่อง คำอธิบาย และแฮชแท็กจากคลิปที่นำเข้า",
+                  style="Muted.TLabel").pack(anchor="w", pady=(4, 7))
+        ai_row = ttk.Frame(ai, style="Card.TFrame")
+        ai_row.pack(fill="x")
+        self.gemini_key_entry = tk.StringVar()
+        ttk.Entry(ai_row, textvariable=self.gemini_key_entry, show="•", width=45).pack(side="left")
+        ttk.Button(ai_row, text="บันทึกคีย์", command=self.save_gemini_key).pack(side="left", padx=6)
+        ttk.Button(ai_row, text="ลบคีย์", command=self.delete_gemini_key).pack(side="left")
+        self.gemini_key_status = ttk.Label(ai, text="ตั้งค่าแล้วบนเครื่องนี้" if KEY_FILE.exists() else
+                                           "ยังไม่ได้ตั้งค่า", style="Muted.TLabel")
+        self.gemini_key_status.pack(anchor="w", pady=(5, 0))
+
+        sv = ttk.Frame(inner)
+        sv.pack(fill="x", pady=12)
+        ttk.Button(sv, text="บันทึกการตั้งค่า", style="Accent.TButton", command=self.save_settings).pack(side="left")
+        ttk.Button(sv, text="คืนค่าเริ่มต้น", command=self.reset_settings).pack(side="left", padx=8)
+
+    def _collect_cfg(self):
+        p = ROOT / "config.json"
+        raw = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        raw.setdefault("video", {})
+        raw.setdefault("audio", {})
+        raw.setdefault("tts", {})
+        raw.setdefault("voices", {})
+        raw["channel_name"] = self.v["channel_name"].get().strip()
+        raw["outro_text"] = self.v["outro_text"].get().strip()
+        fm = [f for f in ("vertical", "horizontal") if self.v[f].get()] or ["vertical"]
+        raw["video"]["formats"] = fm
+        raw["audio"]["music_volume"] = round(float(self.v["music_volume"].get()), 3)
+        raw["tts"]["azure_key"] = self.v["azure_key"].get().strip()
+        raw["tts"]["azure_region"] = self.v["azure_region"].get().strip() or "southeastasia"
+        for who, (nv, pv, rv) in self.voice_vars.items():
+            vc = dict(cfgmod.DEFAULTS["voices"].get(who, {}), **raw["voices"].get(who, {}))
+            vc["edge"] = nv.get()
+            vc["pitch"] = "%+dHz" % int(pv.get())
+            vc["rate"] = "%+d%%" % int(rv.get())
+            raw["voices"][who] = vc
+        return raw
+
+    def save_settings(self):
+        try:
+            raw = self._collect_cfg()
+        except Exception as e:
+            messagebox.showwarning("ตั้งค่า", "ค่าบางช่องไม่ถูกต้อง: %s" % e)
+            return
+        (ROOT / "config.json").write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.cfg = cfgmod.load()
+        self.say("บันทึกการตั้งค่าแล้ว", "good")
+
+    def save_gemini_key(self):
+        from .credential_store import save_key
+        try:
+            save_key(self.gemini_key_entry.get())
+        except Exception as exc:
+            messagebox.showerror("Gemini API key", str(exc))
+            return
+        self.gemini_key_entry.set("")
+        self.gemini_key_status.configure(text="ตั้งค่าแล้วบนเครื่องนี้")
+        self.say("บันทึก Gemini API key สำหรับบัญชี Windows นี้แล้ว", "good")
+
+    def delete_gemini_key(self):
+        from .credential_store import delete_key
+        delete_key()
+        self.gemini_key_status.configure(text="ยังไม่ได้ตั้งค่า")
+        self.say("ลบ Gemini API key แล้ว", "good")
+
+    def reset_settings(self):
+        if messagebox.askyesno("คืนค่าเริ่มต้น", "คืนค่าการตั้งค่าทั้งหมดเป็นค่าเริ่มต้น?"):
+            cfgmod.write_default()
+            self.cfg = cfgmod.load()
+            for w in self.tab_set.winfo_children():
+                w.destroy()
+            self._build_settings()
+            self.say("คืนค่าเริ่มต้นแล้ว", "good")
+
+    def test_voice(self, who):
+        try:
+            raw = self._collect_cfg()
+        except Exception:
+            return
+        vc = dict(raw["voices"][who], _azure_key=raw["tts"].get("azure_key", ""),
+                  _azure_region=raw["tts"].get("azure_region", "southeastasia"))
+        text = {"narrator": "สวัสดีจ้ะ เด็กๆ วันนี้เรามาเรียนนับเลขกันนะ",
+                "bunny": "สวัสดีจ้ะ ปุยฝ้ายเองจ้ะ", "bear": "สวัสดีครับ โกโก้มาแล้วครับ",
+                "chick": "เจี๊ยบ เจี๊ยบ สวัสดีจ้ะ", "cat": "เหมียว มิวมิวมาแล้วจ้ะ"}[who]
+        engines = [e for e in raw["tts"].get("engines", self.cfg["tts"]["engines"]) if e not in ("espeak", "silent")]
+        self.say("กำลังสร้างเสียง %s..." % CHAR_NAMES[who])
+
+        def work():
+            from . import tts
+            try:
+                x, eng = tts.synth_with_fallback(text, vc, engines, ROOT / "cache" / "tts", lambda m: None)
+                from . import audio
+                p = ROOT / "cache" / ("voice_test_%s.wav" % who)
+                audio.write_wav(p, x)
+                self.q.put(("play", str(p)))
+                self.q.put(("log", ("เล่นเสียง %s (%s)" % (CHAR_NAMES[who], eng), "good")))
+            except Exception as e:
+                self.q.put(("log", ("สร้างเสียงไม่สำเร็จ: %s" % e, "bad")))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    # ------------------------------------------------------------------ planner tab (AI ideas -> requests)
+    LENGTHS = [("30 วินาที", 30), ("1 นาที", 60), ("2 นาที", 120), ("3 นาที", 180),
+               ("5 นาที (คลิปรวม)", 300), ("10 นาที (คลิปรวม)", 600), ("20 นาที (คลิปรวม)", 1200)]
+    FORMATS = [("อัตโนมัติตามความยาว", "auto"), ("แนวตั้ง (TikTok / Shorts)", "vertical"),
+               ("แนวนอน (YouTube)", "horizontal"), ("ทั้งสองแบบ", "both")]
+
+    def _build_plan(self):
+        t = self.tab_plan
+        bar = ttk.Frame(t)
+        bar.pack(fill="x", pady=(0, 8))
+        ttk.Label(bar, text="วางแผนคลิปกับ AI", style="H1.TLabel").pack(side="left")
+        self.plan_updated = ttk.Label(bar, text="", foreground=MUTED)
+        self.plan_updated.pack(side="left", padx=12)
+        ttk.Button(bar, text="รีเฟรช", command=self.refresh_plan).pack(side="right")
+        ttk.Button(bar, text="คัดลอกพรอมต์ Flow (คลิปสินค้า)", command=self.copy_product_prompt).pack(side="right", padx=6)
+        ttk.Button(bar, text="สร้างไอเดียคลิปสินค้า", command=self.make_product_ideas).pack(side="right")
+        self.plan_genre = tk.StringVar(value="ทุกแนว")
+        self.plan_genre_cb = ttk.Combobox(bar, textvariable=self.plan_genre, state="readonly", width=22)
+        self.plan_genre_cb.pack(side="right", padx=6)
+        self.plan_genre_cb.bind("<<ComboboxSelected>>", lambda e: self.refresh_plan())
+        ttk.Label(bar, text="แนว:").pack(side="right")
+
+        main = ttk.Frame(t)
+        main.pack(fill="both", expand=True)
+        left = ttk.Frame(main)
+        left.pack(side="left", fill="both", expand=True)
+        ttk.Label(left, text="ไอเดียที่ AI วิเคราะห์มาให้ (เลือกได้หลายอัน กด Ctrl ค้างแล้วคลิก)",
+                  foreground=MUTED).pack(anchor="w")
+        cols = ("genre", "title", "why", "len")
+        self.tv_i = ttk.Treeview(left, columns=cols, show="headings", selectmode="extended", height=10)
+        for c, w, txt in (("genre", 130, "แนว"), ("title", 330, "ไอเดีย"), ("why", 330, "ทำไมน่าทำ"),
+                          ("len", 90, "ความยาวแนะนำ")):
+            self.tv_i.heading(c, text=txt)
+            self.tv_i.column(c, width=w, anchor="w")
+        self.tv_i.pack(fill="both", expand=True, pady=(4, 0))
+
+        right = ttk.Frame(main, style="Card.TFrame", padding=14, width=380)
+        right.pack(side="right", fill="y", padx=(12, 0))
+        right.pack_propagate(False)
+        ttk.Button(right, text="ส่งคำขอ", style="Accent.TButton", command=self.send_request).pack(
+            side="bottom", fill="x")
+        form_canvas = tk.Canvas(right, bg=CARD, highlightthickness=0)
+        form_scroll = ttk.Scrollbar(right, orient="vertical", command=form_canvas.yview)
+        form = ttk.Frame(form_canvas, style="Card.TFrame")
+        form_window = form_canvas.create_window((0, 0), window=form, anchor="nw")
+        form.bind("<Configure>", lambda e: form_canvas.configure(scrollregion=form_canvas.bbox("all")))
+        form_canvas.bind("<Configure>", lambda e: form_canvas.itemconfigure(form_window, width=e.width))
+        form_canvas.configure(yscrollcommand=form_scroll.set)
+        form_canvas.pack(side="left", fill="both", expand=True)
+        form_scroll.pack(side="right", fill="y")
+        def scroll_plan_form(event):
+            if self.nb.select() != str(self.tab_plan):
+                return
+            target = self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery())
+            if target is not None and str(target).startswith(str(right)):
+                form_canvas.yview_scroll(int(-event.delta / 120), "units")
+        self.bind_all("<MouseWheel>", scroll_plan_form, add="+")
+        ttk.Label(form, text="สร้างคำขอ", style="H2.TLabel").pack(anchor="w")
+        self.req_len = tk.StringVar(value=self.LENGTHS[0][0])
+        self.req_fmt = tk.StringVar(value=self.FORMATS[0][0])
+        self.req_count = tk.IntVar(value=1)
+        self.req_custom = tk.StringVar()
+        self.req_note = tk.StringVar()
+        for lbl, w in (("ความยาวคลิป", ttk.Combobox(form, textvariable=self.req_len, state="readonly", width=28,
+                                                    values=[x[0] for x in self.LENGTHS])),
+                       ("แนวภาพ", ttk.Combobox(form, textvariable=self.req_fmt, state="readonly", width=28,
+                                               values=[x[0] for x in self.FORMATS])),
+                       ("จำนวนคลิป ต่อไอเดีย", ttk.Spinbox(form, from_=1, to=10, width=6, textvariable=self.req_count)),
+                       ("หัวข้อที่อยากได้เพิ่ม (พิมพ์เองได้)", ttk.Entry(form, textvariable=self.req_custom, width=34)),
+                       ("หมายเหตุถึง AI", ttk.Entry(form, textvariable=self.req_note, width=34))):
+            ttk.Label(form, text=lbl, style="Card.TLabel").pack(anchor="w", pady=(6, 1))
+            w.pack(anchor="w")
+        ttk.Label(form, style="Muted.TLabel", wraplength=310, justify="left",
+                  text="5-20 นาที = คลิปรวมหลายตอนแนวนอนสำหรับ YouTube (AI เขียนตอนใหม่ + ใช้ตอนเก่าที่แนวเดียวกัน) "
+                       "• ไม่เลือกไอเดียก็ได้ ถ้าพิมพ์หัวข้อเอง").pack(anchor="w", pady=(8, 0))
+
+        ttk.Label(form, text="ให้ AI ตัวไหนเขียนบท", style="H2.TLabel").pack(anchor="w", pady=(8, 2))
+        self.req_provider = tk.StringVar(value="claude")
+        provider_row = ttk.Frame(form, style="Card.TFrame")
+        provider_row.pack(fill="x")
+        for value, label in (("claude", "Claude Pro"), ("gemini", "Gemini Pro"),
+                             ("gpt", "ChatGPT Plus")):
+            ttk.Radiobutton(provider_row, text=label, value=value, variable=self.req_provider,
+                            style="Card.TRadiobutton", command=self._plan_provider_changed).pack(side="left", padx=(0, 8))
+        self.plan_provider_note = ttk.Label(form, text="", style="Muted.TLabel", wraplength=310)
+        self.plan_provider_note.pack(anchor="w", pady=(3, 0))
+        ttk.Label(form, text="เวลาที่ให้ทำ (ตามเวลาเครื่อง)", style="Card.TLabel").pack(anchor="w", pady=(7, 2))
+        when_row = ttk.Frame(form, style="Card.TFrame")
+        when_row.pack(fill="x")
+        self.req_when = tk.StringVar(value="now")
+        ttk.Radiobutton(when_row, text="ตอนนี้", value="now", variable=self.req_when,
+                        style="Card.TRadiobutton", command=self._plan_when_changed).pack(side="left")
+        ttk.Radiobutton(when_row, text="กำหนดเวลา", value="later", variable=self.req_when,
+                        style="Card.TRadiobutton", command=self._plan_when_changed).pack(side="left", padx=(10, 0))
+        self.req_date = tk.StringVar(value=(dt.date.today() + dt.timedelta(days=1)).isoformat())
+        self.req_time = tk.StringVar(value="06:22")
+        self.plan_schedule_row = ttk.Frame(form, style="Card.TFrame")
+        ttk.Entry(self.plan_schedule_row, textvariable=self.req_date, width=13).pack(side="left")
+        ttk.Label(self.plan_schedule_row, text=" เวลา ", style="Card.TLabel").pack(side="left")
+        ttk.Entry(self.plan_schedule_row, textvariable=self.req_time, width=7).pack(side="left")
+        self._plan_provider_changed()
+        self._plan_when_changed()
+
+        low = ttk.Frame(t)
+        low.pack(fill="x", pady=(10, 0))
+        top = ttk.Frame(low)
+        top.pack(fill="x")
+        ttk.Label(top, text="คำขอของฉัน", style="H2.TLabel", background=BG).pack(side="left")
+        ttk.Button(top, text="ยกเลิกคำขอที่เลือก", command=self.cancel_request).pack(side="right")
+        ttk.Button(top, text="นำเข้าบทจาก AI", command=self.import_plan_response).pack(side="right", padx=5)
+        ttk.Button(top, text="เปิดแชต / คัดลอกคำสั่ง", command=self.open_plan_request).pack(side="right")
+        self.plan_when = ttk.Label(top, text="แชต AI: วางคำสั่งในแชตและนำ JSON กลับ • Gemini API: โปรแกรมทำเอง", foreground=MUTED)
+        self.plan_when.pack(side="left", padx=12)
+        cols = ("when", "what", "len", "status")
+        self.tv_r = ttk.Treeview(low, columns=cols, show="headings", selectmode="browse", height=5)
+        for c, w, txt in (("when", 130, "ส่งเมื่อ"), ("what", 520, "เรื่อง"), ("len", 140, "ความยาว / แนว"),
+                          ("status", 230, "สถานะ")):
+            self.tv_r.heading(c, text=txt)
+            self.tv_r.column(c, width=w, anchor="w")
+        self.tv_r.pack(fill="x", pady=(4, 0))
+        self.tv_r.bind("<<TreeviewSelect>>", lambda event: self._plan_request_selected())
+        self.tv_r.tag_configure("done", foreground=GOOD)
+        self.tv_r.tag_configure("pending", foreground=WARN)
+
+    def _plans(self):
+        d = ROOT / "plans"
+        for sub in ("requests", "results"):
+            (d / sub).mkdir(parents=True, exist_ok=True)
+        return d
+
+    def make_product_ideas(self):
+        """Build product clip ideas (5 styles) from the NextsellerAI data pulled to nextseller/data."""
+        from .product_clips import build_ideas
+        try:
+            items = build_ideas(20)
+        except FileNotFoundError as e:
+            messagebox.showinfo("คลิปสินค้า", str(e))
+            return
+        except Exception as e:
+            messagebox.showerror("คลิปสินค้า", str(e))
+            return
+        self.plan_genre.set("ทุกแนว")
+        self.refresh_plan()
+        self.say("สร้างไอเดียคลิปสินค้า %d รายการแล้ว เลือกหนึ่งรายการแล้วกด คัดลอกพรอมต์ Flow" % len(items), "good")
+
+    def copy_product_prompt(self):
+        from .product_clips import read_prompt
+        sel = [self._ideas[i] for i in self.tv_i.selection() if i in getattr(self, "_ideas", {})]
+        sel = [it for it in sel if it.get("prompt_file")]
+        if not sel:
+            messagebox.showinfo("พรอมต์ Flow", "เลือกไอเดียแนว \"สินค้า · …\" จากรายการก่อนนะครับ")
+            return
+        text = read_prompt(sel[0])
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.say("คัดลอกพรอมต์ Flow แล้ว: %s ไปวางใน Google Flow (ใช้เครดิตบัญชีตอนกดสร้างใน Flow)" % sel[0].get("title", "")[:40],
+                 "good")
+
+    def refresh_plan(self):
+        if not hasattr(self, "tv_i"):
+            return
+        d = self._plans()
+        ideas = {}
+        p = d / "ideas.json"
+        if p.exists():
+            try:
+                ideas = json.loads(p.read_text(encoding="utf-8-sig"))
+            except Exception as e:
+                self.say("อ่านไฟล์ไอเดียไม่ได้: %s" % e, "bad")
+        items = list(ideas.get("ideas", []))
+        pp = d / "product_ideas.json"
+        if pp.exists():  # product clip ideas from NextsellerAI (studio/product_clips.py)
+            try:
+                items += json.loads(pp.read_text(encoding="utf-8-sig")).get("ideas", [])
+            except Exception as e:
+                self.say("อ่านไฟล์ไอเดียคลิปสินค้าไม่ได้: %s" % e, "bad")
+        genres = ["ทุกแนว"] + sorted({i.get("genre", "") for i in items if i.get("genre")})
+        self.plan_genre_cb.configure(values=genres)
+        want = self.plan_genre.get()
+        self.tv_i.delete(*self.tv_i.get_children())
+        self._ideas = {}
+        for i, it in enumerate(items):
+            if want != "ทุกแนว" and it.get("genre") != want:
+                continue
+            iid = it.get("id") or "idea%d" % i
+            self._ideas[iid] = it
+            self.tv_i.insert("", "end", iid=iid, values=(it.get("genre", ""), it.get("title", ""),
+                                                          it.get("why", ""), it.get("suggested_length", "")))
+        self.plan_updated.configure(text=("ไอเดียอัปเดต %s" % ideas.get("updated", "")[:16].replace("T", " "))
+                                    if ideas else "ยังไม่มีไอเดีย - AI จะสร้างให้ในรอบถัดไป")
+        # requests + results
+        self.tv_r.delete(*self.tv_r.get_children())
+        for rp in sorted((d / "requests").glob("REQ-*.json"), reverse=True)[:50]:
+            try:
+                r = json.loads(rp.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            res = d / "results" / rp.name
+            provider = r.get("provider", "claude")
+            provider_name = {"claude": "Claude", "gemini": "Gemini", "gpt": "ChatGPT"}.get(provider, "AI")
+            if r.get("delivery") == "gemini_api":
+                st = ("Gemini ตั้งเวลา " + r["scheduled_at"].replace("T", " ")) if r.get("scheduled_at") else "Gemini กำลังรัน"
+            elif r.get("delivery") == "chat_handoff":
+                st = "ต้องยืนยันเวลาใน %s" % provider_name if r.get("scheduled_at") else "ต้องส่งคำสั่งใน %s" % provider_name
+            else:
+                st = "รอ Claude อ่านคำขอ (คิวเดิม)"
+            tag = "pending"
+            if res.exists():
+                try:
+                    rr = json.loads(res.read_text(encoding="utf-8-sig"))
+                    n = len(rr.get("script_ids", []))
+                    st = {"done": "%s เขียนบทแล้ว %d บท" % (provider_name, n),
+                          "in_progress": "%s กำลังเขียนบท" % provider_name,
+                          "failed": "%s ทำไม่สำเร็จ" % provider_name}.get(
+                        rr.get("status"), rr.get("status", ""))
+                    if rr.get("compilation_id"):
+                        st += " + คลิปรวม"
+                    if rr.get("message"):
+                        st += " (%s)" % rr["message"][:40]
+                    tag = "done" if rr.get("status") == "done" else ""
+                except Exception:
+                    pass
+            what = ", ".join(x.get("title", "") for x in r.get("items", []))
+            if r.get("custom"):
+                what = (what + ", " if what else "") + r["custom"]
+            fmt_th = {k: v for v, k in self.FORMATS}.get(r.get("format"), r.get("format", ""))
+            self.tv_r.insert("", "end", iid=str(rp), tags=(tag,), values=(
+                r.get("created", "")[:16].replace("T", " "), what[:120],
+                "%s / %s" % (self._len_label(r.get("length_seconds", 30)), fmt_th.split(" ")[0]), st))
+
+    def _plan_request_selected(self):
+        selection = self.tv_r.selection()
+        if not selection:
+            return
+        request = json.loads(Path(selection[0]).read_text(encoding="utf-8"))
+        if request.get("delivery") == "chat_handoff":
+            provider = {"claude": "Claude", "gemini": "Gemini", "gpt": "ChatGPT"}.get(
+                request.get("provider"), "AI")
+            self.plan_when.configure(text="ยังไม่ส่งไป %s: กด 'เปิดแชต / คัดลอกคำสั่ง' → วางและส่งในแชต → นำ JSON กลับ" % provider)
+        elif request.get("delivery") == "gemini_api":
+            self.plan_when.configure(text="Gemini API ทำงานผ่านโปรแกรม ตรวจผลด้วยปุ่ม รีเฟรช")
+        else:
+            self.plan_when.configure(text="คำขอเก่ารอ Claude อ่านไฟล์ ยังไม่ได้ส่งตรงจากโปรแกรม")
+
+    def _len_label(self, sec):
+        return next((lbl for lbl, s in self.LENGTHS if s == sec), "%d วิ" % sec)
+
+    def _plan_provider_changed(self):
+        provider = self.req_provider.get()
+        notes = {
+            "claude": "ใช้ Claude Pro ในแชต/งานตั้งเวลา; โปรแกรมเตรียมคำสั่งให้",
+            "gemini": "มี Gemini API key: ทำอัตโนมัติได้ (โควตา API แยก); ไม่มีก็เปิด Gemini Pro",
+            "gpt": "ใช้ ChatGPT Plus ในแชต/งานตั้งเวลา; ไม่ต้องใช้ OpenAI API key",
+        }
+        self.plan_provider_note.configure(text=notes.get(provider, ""))
+
+    def _plan_when_changed(self):
+        if self.req_when.get() == "later":
+            self.plan_schedule_row.pack(anchor="w", pady=(3, 0))
+        else:
+            self.plan_schedule_row.pack_forget()
+
+    def send_request(self):
+        from .credential_store import KEY_FILE, load_key
+        from .planner_generate import schedule_request
+        from .planner_handoff import chat_handoff_prompt, PROVIDERS
+        sel = [self._ideas[i] for i in self.tv_i.selection() if i in getattr(self, "_ideas", {})]
+        custom = self.req_custom.get().strip()
+        if not sel and not custom:
+            messagebox.showinfo("ส่งคำขอ", "เลือกไอเดียจากรายการ หรือพิมพ์หัวข้อเองก่อนนะครับ")
+            return
+        sec = dict(self.LENGTHS)[self.req_len.get()]
+        fmt = dict(self.FORMATS)[self.req_fmt.get()]
+        if fmt == "auto":
+            fmt = "horizontal" if sec >= 300 else "both"
+        if fmt == "vertical" and sec > 180:
+            if not messagebox.askyesno("แนวตั้ง", "แนวตั้งยาวเกิน 3 นาทีจะลง Shorts ไม่ได้ เปลี่ยนเป็นแนวนอนไหม?"):
+                return
+            fmt = "horizontal"
+        try:
+            count = max(1, min(10, int(self.req_count.get())))
+        except Exception:
+            count = 1
+        scheduled_at = None
+        if self.req_when.get() == "later":
+            try:
+                scheduled_at = dt.datetime.strptime(self.req_date.get().strip() + " " +
+                                                    self.req_time.get().strip(), "%Y-%m-%d %H:%M")
+            except ValueError:
+                messagebox.showwarning("ตั้งเวลา", "ใส่วันเวลาแบบ YYYY-MM-DD และ HH:MM")
+                return
+            if scheduled_at <= dt.datetime.now() + dt.timedelta(minutes=1):
+                messagebox.showwarning("ตั้งเวลา", "กรุณาเลือกเวลาในอนาคตอย่างน้อย 1 นาที")
+                return
+        now = dt.datetime.now()
+        rid = "REQ-%s" % now.strftime("%Y%m%d-%H%M%S")
+        if (self._plans() / "requests" / (rid + ".json")).exists():
+            rid += "-%03d" % (now.microsecond // 1000)
+        provider = self.req_provider.get()
+        gemini_key = load_key() if provider == "gemini" else ""
+        delivery = "gemini_api" if provider == "gemini" and gemini_key else "chat_handoff"
+        if delivery == "gemini_api" and scheduled_at and not KEY_FILE.exists():
+            messagebox.showwarning("Gemini API key", "ตั้งเวลาอัตโนมัติต้องบันทึก Gemini API key ในแท็บตั้งค่าก่อน")
+            return
+        if delivery == "gemini_api" and not scheduled_at and self.proc:
+            messagebox.showinfo("กำลังทำงาน", "มีงานกำลังทำอยู่ รอให้เสร็จก่อนแล้วส่งคำขออีกครั้ง")
+            return
+        req = {"id": rid, "created": now.isoformat(timespec="seconds"), "status": "pending",
+               "items": [{k: it.get(k) for k in ("id", "genre", "title", "summary", "characters") if it.get(k)}
+                         for it in sel],
+               "custom": custom, "length_seconds": sec, "format": fmt, "count_per_item": count,
+               "note": self.req_note.get().strip(), "provider": provider, "delivery": delivery}
+        if scheduled_at:
+            req["scheduled_at"] = scheduled_at.isoformat(timespec="minutes")
+        request_path = self._plans() / "requests" / ("%s.json" % rid)
+        request_path.write_text(json.dumps(req, ensure_ascii=False, indent=2), encoding="utf-8")
+        if delivery == "gemini_api" and scheduled_at:
+            try:
+                req["windows_task"] = schedule_request(request_path, scheduled_at, ROOT)
+                request_path.write_text(json.dumps(req, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception as exc:
+                request_path.unlink(missing_ok=True)
+                messagebox.showerror("ตั้งเวลา", str(exc))
+                return
+        self.req_custom.set("")
+        self.req_note.set("")
+        n = (len(sel) + (1 if custom else 0)) * count
+        if delivery == "gemini_api" and not scheduled_at:
+            if self._start(["plan-generate", "--request", str(request_path)],
+                           "Gemini กำลังเขียนบท %d เรื่อง" % n):
+                self.job_total = 1
+            else:
+                self.say("บันทึกคำขอแล้ว เลือกรายการเพื่อเปิดหรือส่งอีกครั้ง", "bad")
+        elif delivery == "gemini_api":
+            self.say("ตั้งเวลา Gemini เขียนบทแล้ว: %s" % scheduled_at.strftime("%Y-%m-%d %H:%M"), "good")
+        else:
+            prompt = chat_handoff_prompt(req)
+            self.clipboard_clear()
+            self.clipboard_append(prompt)
+            open_path(PROVIDERS[provider][1])
+            self.say("คัดลอกคำขอและเปิด %s แล้ว: วางคำสั่งในแชต%s" % (
+                PROVIDERS[provider][0], "เพื่อยืนยันการตั้งเวลา" if scheduled_at else ""), "good")
+        self.refresh_plan()
+
+    def open_plan_request(self):
+        from .planner_handoff import chat_handoff_prompt, PROVIDERS
+        selection = self.tv_r.selection()
+        if not selection:
+            return
+        req = json.loads(Path(selection[0]).read_text(encoding="utf-8"))
+        provider = req.get("provider", "claude")
+        self.clipboard_clear()
+        self.clipboard_append(chat_handoff_prompt(req))
+        open_path(PROVIDERS.get(provider, PROVIDERS["claude"])[1])
+        self.say("คัดลอกคำขอและเปิด %s แล้ว" % PROVIDERS.get(provider, PROVIDERS["claude"])[0], "good")
+
+    def import_plan_response(self):
+        from .planner_handoff import import_response
+        selection = self.tv_r.selection()
+        if not selection:
+            messagebox.showinfo("นำเข้าบท", "เลือกคำขอในตารางก่อน")
+            return
+        req = json.loads(Path(selection[0]).read_text(encoding="utf-8"))
+        dialog = tk.Toplevel(self)
+        dialog.title("นำเข้าบทที่ AI เขียน")
+        dialog.geometry("760x560")
+        dialog.transient(self)
+        ttk.Label(dialog, text="คัดลอก JSON ทั้งหมดที่ AI ตอบ แล้ววางด้านล่าง", style="H2.TLabel").pack(
+            anchor="w", padx=12, pady=(12, 6))
+        editor = tk.Text(dialog, wrap="word", font=("Consolas", 10))
+        editor.pack(fill="both", expand=True, padx=12)
+        def save():
+            try:
+                ids, comp = import_response(editor.get("1.0", "end"), req, ROOT)
+            except Exception as exc:
+                messagebox.showerror("นำเข้าบทไม่ได้", str(exc), parent=dialog)
+                return
+            dialog.destroy()
+            self.refresh_all()
+            self.say("นำเข้าบท %d เรื่อง%s" % (len(ids), " และคลิปรวม " + comp if comp else ""), "good")
+        ttk.Button(dialog, text="ตรวจและนำเข้าบท", style="Accent.TButton", command=save).pack(
+            anchor="e", padx=12, pady=12)
+        editor.focus_set()
+
+    def cancel_request(self):
+        from .planner_generate import cancel_scheduled_request
+        s = self.tv_r.selection()
+        if not s:
+            return
+        p = Path(s[0])
+        result_path = self._plans() / "results" / p.name
+        if result_path.exists() and json.loads(result_path.read_text(encoding="utf-8")).get("status") == "done":
+            messagebox.showinfo("ยกเลิก", "คำขอนี้ AI ทำไปแล้ว ยกเลิกไม่ได้ (ลบบทในแท็บ \"บท\" แทนได้)")
+            return
+        if messagebox.askyesno("ยกเลิกคำขอ", "ยกเลิกคำขอนี้?"):
+            request = json.loads(p.read_text(encoding="utf-8"))
+            cancel_scheduled_request(request, ROOT)
+            d = self._plans() / "cancelled"
+            d.mkdir(exist_ok=True)
+            shutil.move(str(p), d / p.name)
+            result_path.unlink(missing_ok=True)
+            self.refresh_plan()
+
+    # ------------------------------------------------------------------ posting tab (employee #2)
+    def _build_post(self):
+        from . import publish
+        t = self.tab_post
+        canvas = tk.Canvas(t, bg=BG, highlightthickness=0)
+        sb = ttk.Scrollbar(t, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        win = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units")
+                        if self.nb.select() == str(self.tab_post) else None, add="+")
+
+        st = publish.settings(self.cfg)
+        self.pv = {}
+        ttk.Label(inner, text="พนักงานโพสต์ (คนที่ 2)", style="H1.TLabel").pack(anchor="w", pady=(0, 8))
+
+        m = self.card(inner, fill="x")
+        ttk.Label(m, text="โหมดการโพสต์", style="H2.TLabel").pack(anchor="w")
+        self.pv["mode"] = tk.StringVar(value=st["mode"])
+        for val, txt in (("off", "ไม่ออโต้ - ฉันกดปุ่มโพสต์เองในหน้า \"คลิป\""),
+                         ("approved", "ออโต้ เฉพาะคลิปที่ฉันกด \"อนุมัติ\" แล้ว (แนะนำ)"),
+                         ("auto", "ออโต้ทุกคลิปที่ผ่านการตรวจของระบบ (ไม่ต้องกดอนุมัติ)")):
+            tk.Radiobutton(m, text=txt, value=val, variable=self.pv["mode"], bg=CARD, fg=INK,
+                           activebackground=CARD, selectcolor=CARD, font=(self.F, 11), anchor="w",
+                           highlightthickness=0).pack(anchor="w", pady=2)
+        row = ttk.Frame(m, style="Card.TFrame")
+        row.pack(anchor="w", pady=(10, 0))
+        ttk.Label(row, text="โพสต์สูงสุดต่อวัน ต่อแพลตฟอร์ม", style="Card.TLabel").pack(side="left")
+        self.pv["max_per_day"] = tk.IntVar(value=int(st["max_per_day"]))
+        ttk.Spinbox(row, from_=1, to=10, width=4, textvariable=self.pv["max_per_day"]).pack(side="left", padx=8)
+        ttk.Label(row, text="คลิป     เวลาโพสต์", style="Card.TLabel").pack(side="left", padx=(12, 0))
+        self.pv["post_times"] = tk.StringVar(value=", ".join(st["post_times"]))
+        ttk.Entry(row, textvariable=self.pv["post_times"], width=24).pack(side="left", padx=8)
+        ttk.Label(row, text="(คั่นด้วยจุลภาค เช่น 12:00, 18:00)", style="Muted.TLabel").pack(side="left")
+        ttk.Label(m, style="Muted.TLabel", wraplength=1000, justify="left",
+                  text="แต่ละเวลาโพสต์จะโพสต์ 1 คลิปต่อแพลตฟอร์ม จนครบจำนวนต่อวัน • ระบบข้ามคลิปที่มีคำเตือน "
+                       "(เช่น ใช้เสียงสำรอง) และไม่โพสต์คลิปเดิมซ้ำ • คอมพิวเตอร์ต้องเปิดอยู่ตอนถึงเวลา").pack(
+            anchor="w", pady=(8, 0))
+        self.post_sched_lbl = ttk.Label(m, text="", style="Card.TLabel")
+        self.post_sched_lbl.pack(anchor="w", pady=(6, 0))
+        ttk.Button(m, text="บันทึกการตั้งค่าโพสต์", style="Accent.TButton", command=self.save_post_settings).pack(
+            anchor="w", pady=(10, 0))
+
+        # platform cards
+        self.plat_status = {}
+
+        def plat_card(key, title, note):
+            c = self.card(inner, fill="x", pady=(12, 0))
+            top = ttk.Frame(c, style="Card.TFrame")
+            top.pack(fill="x")
+            ttk.Label(top, text=title, style="H2.TLabel").pack(side="left")
+            lbl = ttk.Label(top, text="", style="Card.TLabel")
+            lbl.pack(side="right")
+            self.plat_status[key] = lbl
+            if note:
+                ttk.Label(c, text=note, style="Muted.TLabel", wraplength=1000, justify="left").pack(anchor="w", pady=(4, 6))
+            body = ttk.Frame(c, style="Card.TFrame")
+            body.pack(fill="x")
+            return body
+
+        # YouTube
+        b = plat_card("youtube", "YouTube",
+                      "โพสต์อัตโนมัติผ่าน API ทางการ ตั้ง \"สร้างมาเพื่อเด็ก\" และ \"เนื้อหาสังเคราะห์\" ให้ทุกคลิป "
+                      "• ต้องมีไฟล์ client_secret.json (Desktop app) จาก Google Cloud ดูวิธีใน คู่มือเชื่อมบัญชี")
+        self.pv["yt_enabled"] = tk.BooleanVar(value=st["youtube"]["enabled"])
+        self.pv["yt_format"] = tk.StringVar(value=st["youtube"]["format"])
+        self.pv["yt_privacy"] = tk.StringVar(value=st["youtube"]["privacy"])
+        ttk.Checkbutton(b, text="ใช้งาน", variable=self.pv["yt_enabled"]).grid(row=0, column=0, sticky="w")
+        ttk.Label(b, text="แบบคลิป", style="Card.TLabel").grid(row=0, column=1, padx=(16, 4))
+        ttk.Combobox(b, textvariable=self.pv["yt_format"], values=["vertical", "horizontal"], width=11,
+                     state="readonly").grid(row=0, column=2)
+        ttk.Label(b, text="การมองเห็น", style="Card.TLabel").grid(row=0, column=3, padx=(16, 4))
+        ttk.Combobox(b, textvariable=self.pv["yt_privacy"], values=["public", "unlisted", "private"], width=10,
+                     state="readonly").grid(row=0, column=4)
+        bb = ttk.Frame(b, style="Card.TFrame")
+        bb.grid(row=1, column=0, columnspan=6, sticky="w", pady=(8, 0))
+        ttk.Button(bb, text="1. เลือกไฟล์ client_secret.json", command=self.yt_pick_client).pack(side="left")
+        ttk.Button(bb, text="2. เชื่อมบัญชี YouTube", command=self.yt_connect).pack(side="left", padx=6)
+        ttk.Button(bb, text="ยกเลิกการเชื่อม", command=lambda: self.disconnect("youtube")).pack(side="left")
+
+        # Facebook Page
+        b = plat_card("facebook_page", "Facebook Page",
+                      "โพสต์อัตโนมัติเป็น Reels ผ่าน API ทางการของ Meta (ติดป้าย AI ให้) • ใส่ App ID / App Secret "
+                      "แล้ววาง token จาก Graph API Explorer จากนั้นเลือกเพจ")
+        self.pv["fb_enabled"] = tk.BooleanVar(value=st["facebook_page"]["enabled"])
+        ttk.Checkbutton(b, text="ใช้งาน", variable=self.pv["fb_enabled"]).grid(row=0, column=0, sticky="w")
+        self.pv["fb_app_id"] = tk.StringVar()
+        self.pv["fb_secret"] = tk.StringVar()
+        self.pv["fb_token"] = tk.StringVar()
+        for i, (lbl, key, show) in enumerate((("App ID", "fb_app_id", ""), ("App Secret", "fb_secret", "•"),
+                                             ("User token", "fb_token", "•")), 1):
+            ttk.Label(b, text=lbl, style="Card.TLabel").grid(row=i, column=0, sticky="w", pady=3)
+            ttk.Entry(b, textvariable=self.pv[key], width=48, show=show).grid(row=i, column=1, columnspan=3,
+                                                                            sticky="w", padx=8)
+        bb = ttk.Frame(b, style="Card.TFrame")
+        bb.grid(row=4, column=0, columnspan=6, sticky="w", pady=(8, 0))
+        ttk.Button(bb, text="เปิด Graph API Explorer", command=lambda: open_path(
+            "https://developers.facebook.com/tools/explorer/")).pack(side="left")
+        ttk.Button(bb, text="ดึงรายชื่อเพจ", command=self.fb_list_pages).pack(side="left", padx=6)
+        self.pv["fb_page"] = tk.StringVar()
+        self.fb_page_cb = ttk.Combobox(bb, textvariable=self.pv["fb_page"], width=30, state="readonly")
+        self.fb_page_cb.pack(side="left")
+        ttk.Button(bb, text="ใช้เพจนี้", command=self.fb_use_page).pack(side="left", padx=6)
+        ttk.Button(bb, text="ยกเลิกการเชื่อม", command=lambda: self.disconnect("facebook_page")).pack(side="left")
+
+        # TikTok
+        port = int(st["tiktok"].get("redirect_port", 3455))
+        b = plat_card("tiktok", "TikTok (ส่งเข้าแบบร่าง)",
+                      "กฎของ TikTok ไม่อนุญาตให้โปรแกรมโพสต์สาธารณะเองโดยไม่ผ่านการตรวจของเจ้าของ ระบบจะส่งคลิปเข้า "
+                      "\"กล่องข้อความ\" ในแอป TikTok แล้วคุณกดโพสต์เองในแอป (ข้อความโพสต์คัดลอกได้จากหน้า \"คลิป\") "
+                      "• Redirect URI ที่ต้องลงทะเบียน: http://127.0.0.1:%d/callback/" % port)
+        self.pv["tt_enabled"] = tk.BooleanVar(value=st["tiktok"]["enabled"])
+        ttk.Checkbutton(b, text="ใช้งาน", variable=self.pv["tt_enabled"]).grid(row=0, column=0, sticky="w")
+        self.pv["tt_key"] = tk.StringVar()
+        self.pv["tt_secret"] = tk.StringVar()
+        for i, (lbl, key, show) in enumerate((("Client key", "tt_key", ""), ("Client secret", "tt_secret", "•")), 1):
+            ttk.Label(b, text=lbl, style="Card.TLabel").grid(row=i, column=0, sticky="w", pady=3)
+            ttk.Entry(b, textvariable=self.pv[key], width=48, show=show).grid(row=i, column=1, columnspan=3,
+                                                                            sticky="w", padx=8)
+        bb = ttk.Frame(b, style="Card.TFrame")
+        bb.grid(row=3, column=0, columnspan=6, sticky="w", pady=(8, 0))
+        ttk.Button(bb, text="คัดลอก Redirect URI", command=lambda: self._copy(
+            "http://127.0.0.1:%d/callback/" % port)).pack(side="left")
+        ttk.Button(bb, text="เชื่อมบัญชี TikTok", command=self.tt_connect).pack(side="left", padx=6)
+        ttk.Button(bb, text="ยกเลิกการเชื่อม", command=lambda: self.disconnect("tiktok")).pack(side="left")
+
+        # Facebook profile
+        c = self.card(inner, fill="x", pady=(12, 0))
+        ttk.Label(c, text="Facebook ส่วนตัว (โปรไฟล์)", style="H2.TLabel").pack(anchor="w")
+        ttk.Label(c, style="Muted.TLabel", wraplength=1000, justify="left",
+                  text="Facebook ปิดการโพสต์ลงโปรไฟล์ส่วนตัวผ่านโปรแกรมตั้งแต่ปี 2018 และการใช้บอทคลิกแทนผิดกฎของ Meta "
+                       "(เสี่ยงโดนระงับบัญชี) วิธีที่ปลอดภัย: ให้ระบบโพสต์ลงเพจ แล้วกด \"แชร์\" จากเพจไปที่โปรไฟล์ "
+                       "หรือใช้ปุ่ม \"Facebook ส่วนตัว\" ในหน้าคลิป ซึ่งจะคัดลอกข้อความและเปิด Facebook ให้คุณโพสต์เอง").pack(
+            anchor="w", pady=(4, 0))
+        ttk.Button(inner, text="เปิดคู่มือเชื่อมบัญชี", command=lambda: open_path(ROOT / "CONNECT_ACCOUNTS_TH.html")).pack(
+            anchor="w", pady=12)
+        self.refresh_post_status()
+
+    def _copy(self, text):
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.say("คัดลอกแล้ว: %s" % text[:80], "good")
+
+    def refresh_post_status(self):
+        from . import publish
+        if not hasattr(self, "plat_status"):
+            return
+        for p, lbl in self.plat_status.items():
+            if publish.is_connected(p):
+                lbl.configure(text="เชื่อมแล้ว: %s" % (publish.account_name(p) or "-"), foreground=GOOD)
+            else:
+                lbl.configure(text="ยังไม่ได้เชื่อม", foreground=WARN)
+
+    def _bg(self, fn, ok_msg):
+        def work():
+            try:
+                r = fn()
+                self.q.put(("log", (ok_msg % (r or ""), "good")))
+            except Exception as e:
+                self.q.put(("log", ("ไม่สำเร็จ: %s" % e, "bad")))
+            self.q.put(("call", self.refresh_post_status))
+        threading.Thread(target=work, daemon=True).start()
+
+    def yt_pick_client(self):
+        from .publish import youtube
+        f = filedialog.askopenfilename(title="เลือกไฟล์ client_secret.json", filetypes=[("JSON", "*.json")])
+        if not f:
+            return
+        try:
+            youtube.set_client_file(f)
+            self.say("บันทึกไฟล์ client_secret.json แล้ว ต่อไปกด \"เชื่อมบัญชี YouTube\"", "good")
+        except Exception as e:
+            messagebox.showwarning("YouTube", str(e))
+
+    def yt_connect(self):
+        from .publish import youtube
+        self.say("กำลังเปิดเบราว์เซอร์ให้ล็อกอิน Google...")
+        self._bg(youtube.connect, "เชื่อม YouTube แล้ว: ช่อง %s")
+
+    def fb_list_pages(self):
+        from . import publish
+        from .publish import facebook
+        a, s, tok = self.pv["fb_app_id"].get().strip(), self.pv["fb_secret"].get().strip(), self.pv["fb_token"].get().strip()
+        if not (a and s and tok):
+            messagebox.showinfo("Facebook", "ใส่ App ID, App Secret และ User token ให้ครบก่อน")
+            return
+        ver = publish.settings(self.cfg)["facebook_page"]["graph_version"]
+
+        def work():
+            try:
+                pages = facebook.list_pages(a, s, tok, ver)
+                self.q.put(("call", lambda: self._fb_pages(pages)))
+            except Exception as e:
+                self.q.put(("log", ("ดึงรายชื่อเพจไม่สำเร็จ: %s" % e, "bad")))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _fb_pages(self, pages):
+        self._pages = pages
+        self.fb_page_cb.configure(values=[p["name"] for p in pages])
+        if pages:
+            self.fb_page_cb.current(0)
+            self.say("พบ %d เพจ เลือกเพจแล้วกด \"ใช้เพจนี้\"" % len(pages), "good")
+        else:
+            self.say("ไม่พบเพจที่บัญชีนี้โพสต์ได้", "bad")
+
+    def fb_use_page(self):
+        from .publish import facebook
+        name = self.pv["fb_page"].get()
+        page = next((p for p in getattr(self, "_pages", []) if p["name"] == name), None)
+        if not page:
+            return
+        facebook.save_page(page)
+        self.pv["fb_token"].set("")
+        self.pv["fb_secret"].set("")
+        self.say("เชื่อมเพจ %s แล้ว" % name, "good")
+        self.refresh_post_status()
+
+    def tt_connect(self):
+        from . import publish
+        from .publish import tiktok
+        k, s = self.pv["tt_key"].get().strip(), self.pv["tt_secret"].get().strip()
+        if k and s:
+            tiktok.save_app(k, s)
+            self.pv["tt_secret"].set("")
+        elif not publish.load_secret("tiktok_app"):
+            messagebox.showinfo("TikTok", "ใส่ Client key และ Client secret ก่อน")
+            return
+        port = publish.settings(self.cfg)["tiktok"].get("redirect_port", 3455)
+        self.say("กำลังเปิดเบราว์เซอร์ให้ล็อกอิน TikTok...")
+        self._bg(lambda: tiktok.connect(port), "เชื่อม TikTok แล้ว: %s")
+
+    def disconnect(self, platform):
+        from . import publish
+        if messagebox.askyesno("ยกเลิกการเชื่อม", "ยกเลิกการเชื่อม %s?" % publish.LABEL[platform]):
+            publish.module(platform).disconnect()
+            self.refresh_post_status()
+
+    def save_post_settings(self):
+        import re
+        times = [x.strip() for x in self.pv["post_times"].get().replace(" ", ",").split(",") if x.strip()]
+        bad = [x for x in times if not re.match(r"^([01]?\d|2[0-3]):[0-5]\d$", x)]
+        if bad or not times:
+            messagebox.showwarning("เวลาโพสต์", "เวลาไม่ถูกต้อง: %s (ใช้แบบ 12:00, 18:00)" % ", ".join(bad))
+            return
+        times = ["%02d:%s" % (int(x.split(":")[0]), x.split(":")[1]) for x in times][:6]
+        p = ROOT / "config.json"
+        raw = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        pub = raw.setdefault("publish", {})
+        pub["mode"] = self.pv["mode"].get()
+        pub["max_per_day"] = int(self.pv["max_per_day"].get())
+        pub["post_times"] = times
+        pub.setdefault("youtube", {}).update(enabled=bool(self.pv["yt_enabled"].get()),
+                                             format=self.pv["yt_format"].get(), privacy=self.pv["yt_privacy"].get())
+        pub.setdefault("facebook_page", {}).update(enabled=bool(self.pv["fb_enabled"].get()), format="vertical")
+        pub.setdefault("tiktok", {}).update(enabled=bool(self.pv["tt_enabled"].get()), format="vertical")
+        p.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.cfg = cfgmod.load()
+        # Windows tasks: one per post time, only when a mode other than "off" is chosen
+        msg = self._apply_post_tasks(times if pub["mode"] != "off" else [])
+        self.say("บันทึกการตั้งค่าโพสต์แล้ว (%s) %s" % (
+            {"off": "ไม่ออโต้", "approved": "ออโต้เฉพาะที่อนุมัติ", "auto": "ออโต้ทั้งหมด"}[pub["mode"]], msg), "good")
+
+    def _apply_post_tasks(self, times):
+        if not IS_WIN:
+            return "(ตั้งเวลาได้บน Windows เท่านั้น)"
+        for i in range(1, 9):
+            subprocess.run(["schtasks", "/Delete", "/F", "/TN", "KidsStudio Auto Post %d" % i],
+                           capture_output=True, **NOWIN)
+        bat = ROOT / "run_post_auto.bat"
+        ok = 0
+        for i, hhmm in enumerate(times, 1):
+            r = subprocess.run(["schtasks", "/Create", "/F", "/TN", "KidsStudio Auto Post %d" % i, "/SC", "DAILY",
+                                "/ST", hhmm, "/TR", '"%s"' % bat], capture_output=True, text=True, **NOWIN)
+            ok += r.returncode == 0
+        self.post_sched_lbl.configure(
+            text=("โพสต์อัตโนมัติทุกวันเวลา %s" % ", ".join(times)) if times else "ปิดการโพสต์อัตโนมัติ",
+            foreground=GOOD if times else WARN)
+        return "- ตั้งเวลาโพสต์ %d เวลา" % ok if times else "- ปิดเวลาโพสต์อัตโนมัติ"
+
+    # per-clip posting from the clips tab
+    def post_selected(self, platform):
+        folder, meta = self._sel_clip()
+        if not folder:
+            return
+        self.post_folder(folder, platform)
+
+    def post_folder(self, folder, platform, confirmed=False):
+        from . import publish
+        meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+        if not publish.is_connected(platform):
+            messagebox.showinfo("โพสต์", "ยังไม่ได้เชื่อม %s ไปที่แท็บ \"โพสต์\" ก่อน" % publish.LABEL[platform])
+            return
+        prev = (meta.get("posts") or {}).get(platform, {})
+        force = False
+        if prev.get("status") in ("posted", "draft_sent"):
+            if not messagebox.askyesno("โพสต์ซ้ำ?", "คลิปนี้โพสต์ไป %s แล้ว ต้องการโพสต์ซ้ำหรือไม่?" % publish.LABEL[platform]):
+                return
+            force = True
+        if not confirmed and not messagebox.askyesno("ยืนยันการโพสต์", "โพสต์ \"%s\" ไปที่ %s ตอนนี้?" % (
+                meta.get("title", ""), publish.LABEL[platform])):
+            return
+        args = ["publish", "clip", "--folder", str(folder), "--to", platform] + (["--force"] if force else [])
+        self._start(args, "กำลังโพสต์ไป %s" % publish.LABEL[platform])
+
+    def post_profile_manual(self):
+        from . import publish
+        folder, meta = self._sel_clip()
+        if not folder:
+            return
+        self._copy(publish.caption(meta, "facebook_profile"))
+        open_path(folder)
+        open_path("https://www.facebook.com/")
+        self.say("คัดลอกข้อความแล้ว: ใน Facebook กดสร้างโพสต์ ลากไฟล์คลิปแนวตั้งจากโฟลเดอร์ที่เปิดขึ้นมา แล้ววางข้อความ", "good")
+
+    # ------------------------------------------------------------------ jobs
+    def _start(self, args, label, env_updates=None):
+        if self.proc:
+            messagebox.showinfo("กำลังทำงาน", "มีงานกำลังทำอยู่ รอให้เสร็จก่อนนะครับ")
+            return False
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+        if env_updates:
+            env.update(env_updates)
+        self._created_folder = None
+        self.proc = subprocess.Popen([python_exe(), "-u", "-m", "studio"] + args, cwd=str(ROOT), env=env,
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                     encoding="utf-8", errors="replace", **NOWIN)
+        self.job_total = 0
+        self.job_done = 0
+        self.prog.configure(value=0)
+        self.prog_label.configure(text=label)
+        self.btn_stop.configure(state="normal")
+        self.btn_batch.configure(state="disabled")
+        self.say("เริ่ม: " + label)
+
+        def reader(p):
+            for line in p.stdout:
+                self.q.put(("line", line.rstrip()))
+            self.q.put(("done", p.wait()))
+
+        threading.Thread(target=reader, args=(self.proc,), daemon=True).start()
+        return True
+
+    def run_batch(self):
+        n = len(self._inbox())
+        if not n:
+            messagebox.showinfo("สร้างคลิป", "ยังไม่มีบทในแท็บ \"บท\"")
+            return
+        self._start(["batch"], "กำลังสร้างคลิป %d เรื่อง" % n)
+        self.job_total = n
+
+    def render_selected(self):
+        sel = self._sel_scripts()
+        if not sel:
+            return
+        if len(sel) > 1:
+            messagebox.showinfo("สร้างคลิป", "เลือกทีละเรื่อง หรือกด \"สร้างคลิปจากบททั้งหมด\" ในหน้าหลัก")
+            return
+        self._start(["render", str(sel[0])], "กำลังสร้างคลิป: %s" % sel[0].stem)
+        self.job_total = 1
+        self._single = sel[0]
+
+    def run_check(self):
+        self._start(["check"], "กำลังตรวจความพร้อมเครื่อง")
+
+    def stop_job(self):
+        if self.proc and messagebox.askyesno("หยุด", "หยุดงานที่กำลังทำ? คลิปที่ทำค้างอยู่จะไม่สมบูรณ์"):
+            self.proc.terminate()
+
+    def _on_line(self, line):
+        import re
+        if line.startswith("CREATED: ") or re.search(r"\] CREATED: ", line):
+            self._created_folder = Path(line.split("CREATED: ", 1)[1].strip())
+        tag = "bad" if ("FAILED" in line or "Error" in line or "failed" in line) else (
+            "good" if (" OK" in line or "READY" in line or "done" in line) else None)
+        self.say(line, tag, stamp=False)
+        m = re.search(r"\((\d+)/(\d+)\)", line)
+        if m:
+            self.job_done, self.job_total = int(m.group(1)) - 1, int(m.group(2))
+            self.prog_label.configure(text="กำลังสร้างคลิปที่ %s จาก %s" % (m.group(1), m.group(2)))
+        m2 = re.search(r"(vertical|horizontal) (\d+)%", line)
+        if self.job_total:
+            frac = 0.0
+            if m2:
+                part = int(m2.group(2)) / 100.0
+                nfmt = len(self.cfg["video"]["formats"])
+                idx = self.cfg["video"]["formats"].index(m2.group(1)) if m2.group(1) in self.cfg["video"]["formats"] else 0
+                frac = (idx + part) / max(1, nfmt)
+            if "OK in" in line or "FAILED" in line:
+                self.job_done += 1
+                frac = 0
+            self.prog.configure(value=100.0 * (self.job_done + frac) / self.job_total)
+
+    def _on_done(self, rc):
+        if getattr(self, "_single", None) is not None:
+            p = self._single
+            self._single = None
+            if rc == 0 and p.exists() and p.parent.name == "inbox":
+                d = ROOT / "scripts" / "done" / dt.date.today().isoformat()
+                d.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(p), d / p.name)
+        self.proc = None
+        self.btn_stop.configure(state="disabled")
+        self.btn_batch.configure(state="normal")
+        self.prog.configure(value=100 if rc == 0 else self.prog["value"])
+        self.prog_label.configure(text="เสร็จแล้ว" if rc == 0 else "เสร็จแล้ว (มีบางเรื่องไม่สำเร็จ ดูบันทึก)")
+        self.say("งานเสร็จ" if rc == 0 else "งานจบ แต่มีข้อผิดพลาด (รหัส %s)" % rc, "good" if rc == 0 else "bad")
+        self.refresh_all()
+        pending = getattr(self, "_platform_pending", None)
+        self._platform_pending = None
+        if rc == 0 and pending:
+            platform, expected = pending
+            folder = getattr(self, "_created_folder", None) or expected
+            if folder:
+                self._platform_select_folder(platform, folder)
+                if getattr(self, "_platform_auto_caption", False):
+                    self._platform_auto_caption = False
+                    self.platform_ai_caption(platform)
+        if rc != 0:
+            self._platform_auto_caption = False
+        if rc == 0:
+            self.bell()
+
+    def _poll(self):
+        try:
+            while True:
+                kind, val = self.q.get_nowait()
+                if kind == "line":
+                    self._on_line(val)
+                elif kind == "done":
+                    self._on_done(val)
+                elif kind == "log":
+                    self.say(*val)
+                elif kind == "sched":
+                    self._show_sched(val)
+                elif kind == "preview":
+                    self._show_preview(val)
+                elif kind == "play":
+                    self._play_wav(val)
+                elif kind == "call":
+                    val()
+        except queue.Empty:
+            pass
+        self.after(150, self._poll)
+
+    def _show_sched(self, val):
+        if val:
+            hhmm, nxt, state = (val.split("|") + ["", "", ""])[:3]
+            self.sched_now.configure(text="เปิดอยู่: ทุกวันเวลา %s   (ครั้งถัดไป %s)" % (hhmm, nxt), foreground=GOOD)
+            self.stat_vals["next"].configure(text=hhmm)
+            try:
+                self.hh.set(hhmm.split(":")[0])
+                self.mm.set(hhmm.split(":")[1])
+            except Exception:
+                pass
+        else:
+            self.sched_now.configure(text="ยังไม่ได้ตั้งเวลา (ปิดอยู่)", foreground=WARN)
+            self.stat_vals["next"].configure(text="ปิด")
+
+    def _show_preview(self, im):
+        top = tk.Toplevel(self)
+        top.title("ภาพตัวอย่าง")
+        top.configure(bg=BG)
+        im = im.copy()
+        im.thumbnail((420, 746))
+        ph = ImageTk.PhotoImage(im)
+        lbl = tk.Label(top, image=ph, bg=BG)
+        lbl.image = ph
+        lbl.pack(padx=10, pady=10)
+        self.say("แสดงภาพตัวอย่างแล้ว", "good")
+
+    def _play_wav(self, path):
+        if IS_WIN:
+            import winsound
+            winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        else:
+            open_path(path)
+
+    # ------------------------------------------------------------------ misc
+    def say(self, text, tag=None, stamp=True):
+        if stamp:
+            text = "[%s] %s" % (dt.datetime.now().strftime("%H:%M:%S"), text)
+        self.log.insert("end", text + "\n", (tag,) if tag else ())
+        self.log.see("end")
+
+    def refresh_stats(self):
+        n_inbox = len(self._inbox())
+        today = dt.date.today().isoformat()
+        clips = self._clips()
+        n_today = sum(1 for d, _, _ in clips if d == today)
+        n_review = sum(1 for _, _, m in clips if m.get("status") == "ready_for_approval")
+        self.stat_vals["inbox"].configure(text=str(n_inbox))
+        self.stat_vals["today"].configure(text=str(n_today))
+        self.stat_vals["review"].configure(text=str(n_review))
+        self.head_status.configure(text="บทรอสร้าง %d  •  คลิปรอตรวจ %d" % (n_inbox, n_review))
+
+    def refresh_all(self):
+        try:
+            self.refresh_stats()
+            self.refresh_scripts()
+            self.refresh_plan()
+            self.refresh_clips()
+            self.refresh_platform_workspaces()
+            self.refresh_schedule()
+        except Exception as e:
+            self.say("รีเฟรชไม่สำเร็จ: %s" % e, "bad")
+
+
+def main():
+    if IS_WIN:
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:
+            pass
+    app = StudioApp()
+    app.mainloop()
+
+
+if __name__ == "__main__":
+    main()

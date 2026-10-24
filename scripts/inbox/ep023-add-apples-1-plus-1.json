@@ -1,0 +1,119 @@
+{
+  "id": "ep023-add-apples-1-plus-1",
+  "title": "บวกเลขง่ายๆ 1+1 และ 2+1 ด้วยแอปเปิ้ล",
+  "description": "ปุยฝ้ายและโกโก้ชวนเด็กๆ ฝึกบวกเลขง่ายๆ ด้วยแอปเปิ้ลสีแดง",
+  "tags": [
+    "นับเลข",
+    "บวกเลข",
+    "การ์ตูนเด็ก",
+    "คณิตศาสตร์อนุบาล"
+  ],
+  "genre": "นับเลข",
+  "characters": [
+    "bunny",
+    "bear"
+  ],
+  "music_seed": 2302,
+  "scenes": [
+    {
+      "background": "meadow",
+      "cast": [
+        "bunny",
+        "bear"
+      ],
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "สวัสดีจ้ะ มาบวกเลขกันนะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "ฉันมีแอปเปิ้ล หนึ่งลูก",
+          "action": "point",
+          "card": "1",
+          "items": {
+            "kind": "apple",
+            "count": 1,
+            "color": "red"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "ฉันให้เพิ่ม อีกหนึ่งลูก",
+          "action": "happy",
+          "card": "1 + 1",
+          "items": {
+            "kind": "apple",
+            "count": 2,
+            "color": "red"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "หนึ่ง บวก หนึ่ง ได้เท่าไรนะ"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bear",
+          "say": "ได้สองลูกจ้ะ",
+          "action": "cheer",
+          "react": "cheer",
+          "card": "1 + 1 = 2"
+        },
+        {
+          "who": "bunny",
+          "say": "อีกข้อนะ ตอนนี้มีสองลูก",
+          "action": "talk",
+          "card": "2",
+          "items": {
+            "kind": "apple",
+            "count": 2,
+            "color": "red"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "เพิ่มอีก หนึ่งลูก",
+          "action": "point",
+          "card": "2 + 1",
+          "items": {
+            "kind": "apple",
+            "count": 3,
+            "color": "red"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "สอง บวก หนึ่ง ได้เท่าไรเอ่ย"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bunny",
+          "say": "ได้สามลูก ถูกต้องจ้ะ",
+          "action": "jump",
+          "react": "happy",
+          "card": "2 + 1 = 3"
+        },
+        {
+          "who": "bear",
+          "say": "มานับดูอีกที หนึ่ง สอง สาม",
+          "action": "talk"
+        },
+        {
+          "who": "bunny",
+          "say": "เก่งมากเลย บวกเลขได้แล้ว",
+          "action": "dance",
+          "react": "dance",
+          "card": "",
+          "items": null
+        }
+      ]
+    }
+  ]
+}

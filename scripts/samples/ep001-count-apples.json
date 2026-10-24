@@ -1,0 +1,31 @@
+{
+  "id": "ep001-count-apples",
+  "title": "นับแอปเปิ้ล 1 ถึง 5 กับปุยฝ้ายและโกโก้",
+  "description": "มาฝึกนับเลข 1 ถึง 5 ไปพร้อมกับกระต่ายปุยฝ้ายและหมีโกโก้ เหมาะสำหรับเด็กเล็ก 2-5 ขวบ",
+  "tags": ["นับเลข", "การ์ตูนเด็ก", "เพลงเด็ก", "ฝึกนับเลข", "สื่อการสอนเด็ก"],
+  "characters": ["bunny", "bear"],
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {"who": "bunny", "say": "สวัสดีจ้ะ เพื่อนๆ", "action": "wave", "react": "happy"},
+        {"who": "bear", "say": "วันนี้ เรามานับแอปเปิ้ลกันนะ", "action": "point"},
+        {"who": "bunny", "say": "หนึ่ง", "card": "1", "items": {"kind": "apple", "count": 1}},
+        {"who": "bear", "say": "สอง", "card": "2", "items": {"kind": "apple", "count": 2}},
+        {"who": "bunny", "say": "สาม", "card": "3", "items": {"kind": "apple", "count": 3}},
+        {"who": "bear", "say": "สี่", "card": "4", "items": {"kind": "apple", "count": 4}},
+        {"who": "bunny", "say": "ห้า", "card": "5", "items": {"kind": "apple", "count": 5}, "action": "jump"},
+        {"who": "bear", "say": "เย้ มีแอปเปิ้ล ห้าลูกแล้ว", "action": "cheer", "react": "cheer"}
+      ]
+    },
+    {
+      "background": "bedroom",
+      "beats": [
+        {"who": "bunny", "say": "ทีนี้ เพื่อนๆ ลองนับดาวดูนะ", "action": "point", "items": {"kind": "star", "count": 3}},
+        {"pause": 2.0},
+        {"who": "bear", "say": "ใช่แล้ว มีดาว สามดวง", "card": "3", "action": "happy", "react": "happy"},
+        {"who": "bunny", "say": "เก่งมากเลยจ้ะ", "action": "dance", "react": "dance"}
+      ]
+    }
+  ]
+}

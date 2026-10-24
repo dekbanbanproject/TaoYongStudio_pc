@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261023-201452",
+  "created": "2026-10-23T20:14:52",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i26",
+      "genre": "คลิปรวม",
+      "title": "รวมการ์ตูนก่อนนอน 20 นาที",
+      "summary": "รวมนิทานก่อนนอนและกิจวัตรก่อนนอนต่อกัน",
+      "characters": [
+        "bunny",
+        "bear",
+        "chick",
+        "cat"
+      ]
+    }
+  ],
+  "custom": "ทำคำขอที่วางในแท็ปวางแผน",
+  "length_seconds": 1200,
+  "format": "both",
+  "count_per_item": 1,
+  "note": ""
+}
