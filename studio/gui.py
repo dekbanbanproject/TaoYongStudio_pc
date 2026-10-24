@@ -715,11 +715,9 @@ class StudioApp(tk.Tk):
         self._build_animation_tools_panel(scroll_content)
 
         # Action Buttons
-        self.btn_render_clip = ttk.Button(btns, text="▶  สร้างคลิปเรื่องนี้", style="Accent.TButton",
+        self.btn_render_clip = ttk.Button(btns, text="▶  สร้างคลิปในเครื่อง (Local Animation)", style="Accent.TButton",
                                           command=self.render_selected)
         self.btn_render_clip.pack(fill="x", pady=3)
-        ttk.Button(btns, text="✦  สร้างแอนิเมชันด้วย Google Flow",
-                   command=self.send_script_to_flow).pack(fill="x", pady=3)
         ttk.Button(btns, text="ดูภาพตัวอย่าง", command=self.preview_script).pack(fill="x", pady=3)
         ttk.Button(btns, text="แก้ไขบท (Notepad)", command=self.edit_script).pack(fill="x", pady=3)
         ttk.Button(btns, text="ลบบทที่เลือก", style="Danger.TButton", command=self.remove_scripts).pack(
@@ -849,7 +847,7 @@ class StudioApp(tk.Tk):
             self.anim_res_cb.configure(state="disabled")
             self.anim_fps_cb.configure(state="disabled")
         else:
-            self.btn_render_clip.configure(text="▶  สร้างคลิปเรื่องนี้ (Local)")
+            self.btn_render_clip.configure(text="▶  สร้างคลิปในเครื่อง (Local Animation)")
             self.anim_device_cb.configure(state="readonly")
             self.anim_engine_cb.configure(state="readonly")
             self.anim_res_cb.configure(state="readonly")
