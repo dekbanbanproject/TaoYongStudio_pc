@@ -2909,7 +2909,7 @@ class StudioApp(tk.Tk):
 
         def refresh(*_):
             ok = bool(priv.get())
-            msg = ""
+            msg = "" if ok else "👈 กรุณาเลือก 'ใครดูคลิปนี้ได้' ด้านบนก่อน เพื่อเปิดใช้งานปุ่มโพสต์ตรง"
             if disc.get() and not (sub["organic"].get() or sub["branded"].get()):
                 ok = False
                 msg = "เลือกประเภทเนื้อหาเชิงพาณิชย์อย่างน้อยหนึ่งข้อ"
