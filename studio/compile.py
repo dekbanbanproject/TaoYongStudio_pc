@@ -38,6 +38,8 @@ def _episodes_index(fmt):
     if not base.exists():
         return idx
     for day in sorted(d for d in base.iterdir() if d.is_dir()):
+        if day.name in ("removed", "trash", ".trash"):
+            continue
         for clip in sorted(c for c in day.iterdir() if c.is_dir()):
             m = clip / "meta.json"
             if not m.exists():

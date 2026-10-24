@@ -663,7 +663,8 @@ class StudioApp(tk.Tk):
         ttk.Label(bar, text="บทที่รอสร้างคลิป", style="H1.TLabel").pack(side="left")
         ttk.Button(bar, text="รีเฟรช", command=self.refresh_scripts).pack(side="right")
         ttk.Button(bar, text="เพิ่มบทจากไฟล์...", command=self.import_scripts).pack(side="right", padx=6)
-        ttk.Button(bar, text="เพิ่มบทตัวอย่าง", command=self.add_samples).pack(side="right")
+        ttk.Button(bar, text="เพิ่มบทตัวอย่าง", command=self.add_samples).pack(side="right", padx=6)
+        ttk.Button(bar, text="ลบบทที่เลือก", style="Danger.TButton", command=self.remove_scripts).pack(side="right")
 
         cols = ("title", "chars", "check")
         self.tv_s = ttk.Treeview(left, columns=cols, show="headings", selectmode="extended")
@@ -675,6 +676,26 @@ class StudioApp(tk.Tk):
         self.tv_s.tag_configure("warn", foreground=WARN)
         self.tv_s.bind("<<TreeviewSelect>>", lambda e: self.show_script())
         self.tv_s.bind("<Double-1>", lambda e: self.edit_script())
+        self.tv_s.bind("<Delete>", lambda e: self.remove_scripts())
+
+        # Right-click context menu for scripts
+        menu_s = tk.Menu(self.tv_s, tearoff=0)
+        menu_s.add_command(label="▶ สร้างคลิปเรื่องนี้", command=self.render_selected)
+        menu_s.add_command(label="✦ ส่งไปสร้างด้วย Google Flow", command=self.send_script_to_flow)
+        menu_s.add_command(label="👁 ดูภาพตัวอย่าง", command=self.preview_script)
+        menu_s.add_command(label="✏ แก้ไขบท (Notepad)", command=self.edit_script)
+        menu_s.add_separator()
+        menu_s.add_command(label="🗑 ลบบทที่เลือก", command=self.remove_scripts)
+
+        def _on_s_right_click(event):
+            item = self.tv_s.identify_row(event.y)
+            if item:
+                if item not in self.tv_s.selection():
+                    self.tv_s.selection_set(item)
+                    self.show_script()
+                menu_s.post(event.x_root, event.y_root)
+
+        self.tv_s.bind("<Button-3>", _on_s_right_click)
 
         right = ttk.Frame(t, style="Card.TFrame", padding=14, width=480)
         right.pack(side="right", fill="y", padx=(12, 0))
@@ -977,13 +998,42 @@ class StudioApp(tk.Tk):
     def remove_scripts(self):
         sel = self._sel_scripts()
         if not sel:
+            messagebox.showinfo("ลบบท", "เลือกบททางซ้ายอย่างน้อย 1 เรื่องก่อน")
             return
-        if not messagebox.askyesno("ลบบท", "ย้ายบทที่เลือก %d เรื่องไปถังขยะของโปรแกรม (scripts\\removed)?" % len(sel)):
+        titles = []
+        for p in sel:
+            cached = self._script_cache.get(str(p))
+            title = None
+            if cached and cached[0]:
+                title = cached[0].get("title")
+            titles.append(title or p.name)
+
+        if len(sel) == 1:
+            msg = f"ต้องการลบบท '{titles[0]}' หรือไม่?\n\nไฟล์บทจะถูกย้ายไปที่ถังขยะของโปรแกรม (scripts\\removed)"
+        else:
+            sample = "\n- ".join(titles[:3])
+            if len(titles) > 3:
+                sample += f"\n... และอีก {len(titles)-3} เรื่อง"
+            msg = f"ต้องการลบบทที่เลือกทั้งหมด {len(sel)} เรื่องหรือไม่?\n\n- {sample}\n\nไฟล์บทจะถูกย้ายไปที่ถังขยะของโปรแกรม (scripts\\removed)"
+
+        if not messagebox.askyesno("ยืนยันการลบบท", msg, icon="warning"):
             return
         d = ROOT / "scripts" / "removed"
         d.mkdir(parents=True, exist_ok=True)
+        deleted_count = 0
         for p in sel:
-            shutil.move(str(p), d / p.name)
+            try:
+                dest = d / p.name
+                if dest.exists():
+                    dest = d / f"{p.stem}_{int(dt.datetime.now().timestamp())}{p.suffix}"
+                shutil.move(str(p), str(dest))
+                deleted_count += 1
+            except Exception as e:
+                messagebox.showerror("ลบบทขัดข้อง", f"ไม่สามารถลบ {p.name}: {e}")
+
+        self.say(f"ลบบทเรียบร้อย {deleted_count} เรื่อง", "good")
+        self.s_preview.configure(image="")
+        self.s_info.configure(text="เลือกบททางซ้าย")
         self.refresh_all()
 
     def preview_script(self):
@@ -1024,6 +1074,7 @@ class StudioApp(tk.Tk):
         bar.pack(fill="x", pady=(0, 8))
         ttk.Label(bar, text="คลิปที่สร้างแล้ว", style="H1.TLabel").pack(side="left")
         ttk.Button(bar, text="รีเฟรช", command=self.refresh_clips).pack(side="right")
+        ttk.Button(bar, text="ลบคลิปที่เลือก", style="Danger.TButton", command=self.remove_clips).pack(side="right", padx=6)
         self.clip_filter = tk.StringVar(value="ทั้งหมด")
         cb = ttk.Combobox(bar, textvariable=self.clip_filter, state="readonly", width=14,
                           values=["ทั้งหมด", "รอตรวจ", "อนุมัติแล้ว", "โพสต์แล้ว", "ไม่ใช้"])
@@ -1032,7 +1083,7 @@ class StudioApp(tk.Tk):
         ttk.Label(bar, text="แสดง:").pack(side="right")
 
         cols = ("date", "title", "dur", "status", "posts")
-        self.tv_c = ttk.Treeview(left, columns=cols, show="headings", selectmode="browse")
+        self.tv_c = ttk.Treeview(left, columns=cols, show="headings", selectmode="extended")
         for c, w, txt, anc in (("date", 100, "วันที่", "w"), ("title", 400, "ชื่อเรื่อง", "w"),
                                ("dur", 70, "ความยาว", "center"), ("status", 120, "สถานะ", "w"),
                                ("posts", 110, "โพสต์แล้ว", "w")):
@@ -1044,6 +1095,26 @@ class StudioApp(tk.Tk):
         self.tv_c.tag_configure("rejected", foreground="#9C95AE")
         self.tv_c.bind("<<TreeviewSelect>>", lambda e: self.show_clip())
         self.tv_c.bind("<Double-1>", lambda e: self.play_clip("vertical"))
+        self.tv_c.bind("<Delete>", lambda e: self.remove_clips())
+
+        # Right-click context menu for clips
+        menu_c = tk.Menu(self.tv_c, tearoff=0)
+        menu_c.add_command(label="▶ เล่นแนวตั้ง (TikTok)", command=lambda: self.play_clip("vertical"))
+        menu_c.add_command(label="▶ เล่นแนวนอน (YouTube)", command=lambda: self.play_clip("horizontal"))
+        menu_c.add_command(label="📋 คัดลอกข้อความโพสต์", command=self.copy_upload)
+        menu_c.add_command(label="📂 เปิดโฟลเดอร์คลิป", command=self.open_clip_folder)
+        menu_c.add_separator()
+        menu_c.add_command(label="🗑 ลบคลิปที่เลือก", command=self.remove_clips)
+
+        def _on_c_right_click(event):
+            item = self.tv_c.identify_row(event.y)
+            if item:
+                if item not in self.tv_c.selection():
+                    self.tv_c.selection_set(item)
+                    self.show_clip()
+                menu_c.post(event.x_root, event.y_root)
+
+        self.tv_c.bind("<Button-3>", _on_c_right_click)
 
         right = ttk.Frame(t, style="Card.TFrame", padding=14, width=480)
         right.pack(side="right", fill="y", padx=(12, 0))
@@ -1084,6 +1155,8 @@ class StudioApp(tk.Tk):
             self.clip_post_buttons[plat] = button
         ttk.Button(btns, text="Facebook ส่วนตัว (คัดลอกข้อความ + เปิดเฟซบุ๊ก)",
                    command=self.post_profile_manual).pack(fill="x", pady=3)
+        ttk.Button(btns, text="🗑  ลบคลิปที่เลือก", style="Danger.TButton",
+                   command=self.remove_clips).pack(fill="x", pady=(6, 2))
         self._update_clip_buttons(None)
 
     # ------------------------------------------------------------------ platform workspaces
@@ -1579,6 +1652,8 @@ class StudioApp(tk.Tk):
         if not base.exists():
             return out
         for day in sorted([d for d in base.iterdir() if d.is_dir()], reverse=True):
+            if day.name in ("removed", "trash", ".trash"):
+                continue
             for clip in sorted([c for c in day.iterdir() if c.is_dir()]):
                 m = clip / "meta.json"
                 if m.exists():
@@ -1618,6 +1693,9 @@ class StudioApp(tk.Tk):
     def _sel_clip(self):
         s = self.tv_c.selection()
         return (Path(s[0]), self._clip_cache.get(s[0])) if s else (None, None)
+
+    def _sel_clips(self):
+        return [Path(i) for i in self.tv_c.selection()]
 
     def show_clip(self):
         folder, meta = self._sel_clip()
@@ -1693,6 +1771,47 @@ class StudioApp(tk.Tk):
             meta["needs_review"] = [item for item in meta.get("needs_review", [])
                                     if item != "ตรวจภาพ เสียง และข้อความก่อนเผยแพร่"]
         (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def remove_clips(self):
+        sel = self._sel_clips()
+        if not sel:
+            messagebox.showinfo("ลบคลิป", "เลือกคลิปทางซ้ายอย่างน้อย 1 คลิปก่อน")
+            return
+        titles = []
+        for p in sel:
+            meta = self._clip_cache.get(str(p), {})
+            titles.append(meta.get("title", p.name))
+
+        if len(sel) == 1:
+            msg = f"ต้องการลบคลิป '{titles[0]}' หรือไม่?\n\nโฟลเดอร์คลิปจะถูกย้ายไปที่ถังขยะของโปรแกรม (output\\removed)"
+        else:
+            sample = "\n- ".join(titles[:3])
+            if len(titles) > 3:
+                sample += f"\n... และอีก {len(titles)-3} คลิป"
+            msg = f"ต้องการลบคลิปที่เลือกทั้งหมด {len(sel)} คลิปหรือไม่?\n\n- {sample}\n\nโฟลเดอร์คลิปจะถูกย้ายไปที่ถังขยะของโปรแกรม (output\\removed)"
+
+        if not messagebox.askyesno("ยืนยันการลบคลิป", msg, icon="warning"):
+            return
+
+        d = ROOT / "output" / "removed"
+        d.mkdir(parents=True, exist_ok=True)
+        deleted_count = 0
+        for p in sel:
+            try:
+                dest = d / p.parent.name / p.name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if dest.exists():
+                    dest = d / p.parent.name / f"{p.name}_{int(dt.datetime.now().timestamp())}"
+                shutil.move(str(p), str(dest))
+                deleted_count += 1
+            except Exception as e:
+                messagebox.showerror("ลบคลิปขัดข้อง", f"ไม่สามารถลบ {p.name}: {e}")
+
+        self.say(f"ลบคลิปเรียบร้อย {deleted_count} รายการ", "good")
+        self.c_thumb.configure(image="")
+        self.c_info.configure(text="เลือกคลิปทางซ้าย")
+        self.refresh_clips()
+        self.refresh_stats()
 
     # ------------------------------------------------------------------ schedule tab
     def _build_sched(self):
