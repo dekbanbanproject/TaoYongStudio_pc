@@ -179,8 +179,8 @@ class StudioApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("TaoYongStudio - สตูดิโอการ์ตูนเด็ก")
-        self.geometry("1240x820")
-        self.minsize(1000, 680)
+        self.geometry("1480x880")
+        self.minsize(1100, 700)
         if IS_WIN:
             try:
                 self.state("zoomed")  # open maximised like a normal desktop program
@@ -196,6 +196,8 @@ class StudioApp(tk.Tk):
         self._styles()
         self._build()
         self.after(150, self._poll)
+        self._last_worker_minute = None
+        self.after(5000, self._worker_heartbeat)
         self.refresh_all()
 
     # ------------------------------------------------------------------ look
@@ -557,6 +559,7 @@ class StudioApp(tk.Tk):
         self.tab_post = ttk.Frame(self.nb, padding=14)
         self.tab_sched = ttk.Frame(self.nb, padding=14)
         self.tab_set = ttk.Frame(self.nb, padding=14)
+        self.tab_fb_profile = ttk.Frame(self.nb, padding=14)
         tabs = ((self.tab_home, "หน้าแรก", "🏠"),
                 (self.tab_plan, "วางแผน", "📋"),
                 (self.tab_scripts, "บท", "📝"),
@@ -564,7 +567,8 @@ class StudioApp(tk.Tk):
                 (self.tab_platforms, "สร้างและโพสต์", "🚀"),
                 (self.tab_post, "ตั้งค่าโพสต์", "⚙️"),
                 (self.tab_sched, "ตั้งเวลา", "⏰"),
-                (self.tab_set, "ตั้งค่า", "🔧"))
+                (self.tab_set, "ตั้งค่า", "🔧"),
+                (self.tab_fb_profile, "FaceBook Profile", "👤"))
         for t, name, _icon in tabs:
             self.nb.add(t, text=name)
         self.web_tab_bar.setup_tabs(self.nb, tabs)
@@ -596,6 +600,7 @@ class StudioApp(tk.Tk):
         self.log.pack(fill="x")
         self.log.tag_configure("bad", foreground="#FF9C9C")
         self.log.tag_configure("good", foreground="#9CF0B8")
+        self._build_fb_profile()
 
     def _on_tab_changed(self, event=None):
         if hasattr(self, "web_tab_bar"):
@@ -1896,100 +1901,436 @@ class StudioApp(tk.Tk):
         self.refresh_clips()
         self.refresh_stats()
 
-    # ------------------------------------------------------------------ schedule tab
+    # ------------------------------------------------------------------ schedule tab (AI Worker Scheduler)
     def _build_sched(self):
         t = self.tab_sched
-        ttk.Label(t, text="ตั้งเวลาสร้างคลิปอัตโนมัติ", style="H1.TLabel").pack(anchor="w", pady=(0, 10))
 
-        # Row 1: 2 Cards Side-by-Side (Schedule Setting on Left, Claude Task on Right)
-        row1 = ttk.Frame(t)
-        row1.pack(fill="x", pady=(0, 10))
-        row1.columnconfigure(0, weight=1, uniform="sched_col")
-        row1.columnconfigure(1, weight=1, uniform="sched_col")
+        # Header bar
+        bar = ttk.Frame(t)
+        bar.pack(fill="x", pady=(0, 8))
+        ttk.Label(bar, text="ตั้งเวลาพนักงาน AI ทำงานอัตโนมัติ (AI Worker Scheduler)", style="H1.TLabel").pack(side="left")
+        ttk.Label(bar, text="เลือกแพลตฟอร์ม กำหนดเวลาทำงานต่อวัน (5, 7, 10, 15 เวลา หรือตามต้องการ) ถึงเวลาพนักงานจะทำงานทันที",
+                  foreground=MUTED, font=(self.F, 10)).pack(side="left", padx=12, pady=4)
+        ttk.Button(bar, text="🔄 รีเฟรชสถานะ", command=self.refresh_worker_schedule_ui).pack(side="right")
 
-        c = self.card(row1)
-        c.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-        ttk.Label(c, text="Windows จะสร้างคลิปจากบททั้งหมดในแท็บ \"บท\" ทุกวันตามเวลานี้",
-                  style="Card.TLabel").pack(anchor="w")
-        self.sched_now = ttk.Label(c, text="", style="H2.TLabel")
-        self.sched_now.pack(anchor="w", pady=(8, 12))
-        row = ttk.Frame(c, style="Card.TFrame")
-        row.pack(anchor="w")
-        ttk.Label(row, text="เวลา", style="Card.TLabel").pack(side="left")
-        self.hh = tk.StringVar(value="07")
-        self.mm = tk.StringVar(value="00")
-        ttk.Spinbox(row, from_=0, to=23, width=4, textvariable=self.hh, format="%02.0f", wrap=True,
-                    font=(self.F, 14)).pack(side="left", padx=(10, 2))
-        ttk.Label(row, text=":", style="Card.TLabel", font=(self.F, 14, "bold")).pack(side="left")
-        ttk.Spinbox(row, from_=0, to=59, increment=5, width=4, textvariable=self.mm, format="%02.0f",
-                    wrap=True, font=(self.F, 14)).pack(side="left", padx=(2, 12))
-        ttk.Button(row, text="บันทึกเวลา", style="Accent.TButton", command=self.save_schedule).pack(side="left")
-        ttk.Button(row, text="ปิดการสร้างอัตโนมัติ", style="Danger.TButton", command=self.remove_schedule).pack(
-            side="left", padx=8)
+        # Scrollable container for the entire schedule tab
+        sch_canvas = tk.Canvas(t, bg=BG, highlightthickness=0)
+        sch_scroll = ttk.Scrollbar(t, orient="vertical", command=sch_canvas.yview)
+        sch_box = ttk.Frame(sch_canvas)
+        sch_win = sch_canvas.create_window((0, 0), window=sch_box, anchor="nw")
 
-        c2 = self.card(row1)
-        c2.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-        ttk.Label(c2, text="งานเขียนบทใน Claude", style="H2.TLabel").pack(anchor="w")
-        ttk.Label(c2, wraplength=480, justify="left", style="Card.TLabel",
-                  text="ถ้าตั้งงาน Claude ไว้ที่ 06:22 ให้ตรวจหรือเปลี่ยนเวลาในแอป Claude → เมนู \"งานตามกำหนดเวลา\"\n"
-                       "ควรตั้งเวลาสร้างคลิปให้หลังเวลาเขียนบทอย่างน้อย 30 นาที").pack(anchor="w", pady=(6, 0))
+        sch_box.bind("<Configure>", lambda e: sch_canvas.configure(scrollregion=sch_canvas.bbox("all")))
+        sch_canvas.bind("<Configure>", lambda e: sch_canvas.itemconfigure(sch_win, width=e.width - 6))
 
-        # Row 2: Tips Card
-        c3 = self.card(t, fill="x", pady=(0, 10))
-        ttk.Label(c3, text="ข้อควรรู้", style="H2.TLabel").pack(anchor="w")
-        ttk.Label(c3, wraplength=1000, justify="left", style="Card.TLabel",
-                  text="• คอมพิวเตอร์ต้องเปิดอยู่ (ไม่ Sleep) ตอนถึงเวลา และสำหรับงานของ Claude ต้องเปิดแอป Claude ค้างไว้\n"
-                       "• ถ้าเครื่องปิดตอนถึงเวลา รอบนั้นจะข้าม บทจะยังรออยู่ในแท็บ \"บท\" กดสร้างเองได้").pack(
-            anchor="w", pady=(6, 0))
+        sch_canvas.configure(yscrollcommand=sch_scroll.set)
+        sch_canvas.pack(side="left", fill="both", expand=True)
+        sch_scroll.pack(side="right", fill="y")
 
-    def _ps(self, cmd):
-        if not IS_WIN:
-            return ""
-        r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, **NOWIN)
-        return r.stdout.strip()
+        # ---------------- CARD 1: PLATFORM SELECTION ----------------
+        c1 = ttk.Frame(sch_box, style="Card.TFrame", padding=14)
+        c1.pack(fill="x", pady=(0, 10))
+
+        c1_head = ttk.Frame(c1)
+        c1_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c1_head, text="1. เลือกแพลตฟอร์มที่ต้องการให้พนักงาน AI ทำงาน", font=(self.F, 12, "bold")).pack(side="left")
+        ttk.Label(c1_head, text="(เลือกได้หลายแพลตฟอร์มพร้อมกัน เมื่อถึงเวลาพนักงานจะทำงานตามที่เลือกไว้ทันที)",
+                  foreground=MUTED, font=(self.F, 10)).pack(side="left", padx=8)
+
+        self.worker_plat_vars = {
+            "facebook_profile": tk.BooleanVar(value=True),
+            "facebook_page": tk.BooleanVar(value=False),
+            "tiktok": tk.BooleanVar(value=False),
+            "youtube": tk.BooleanVar(value=False),
+            "batch_render": tk.BooleanVar(value=False),
+        }
+
+        plats_info = [
+            ("facebook_profile", "👤 Facebook Profile", "พนักงานเบราว์เซอร์อัตโนมัติ (RPA): โพสต์คลิปสินค้า Shopee / Flow พร้อมแคปชั่น และ @ผู้ติดตาม"),
+            ("facebook_page", "📘 Facebook Page", "โพสต์คลิป Reels ลงเพจ Facebook อัตโนมัติผ่าน Publisher API"),
+            ("tiktok", "🎵 TikTok", "ส่งคลิปเข้าแบบร่าง TikTok (Draft) หรือโพสต์อัตโนมัติ"),
+            ("youtube", "📺 YouTube Shorts", "อัปโหลดคลิปสั้นลง YouTube Shorts หรือคลิปแนวนอนอัตโนมัติ"),
+            ("batch_render", "🎬 สร้างคลิปอัตโนมัติ (Batch Render)", "เรนเดอร์บททั้งหมดใน scripts/inbox ให้กลายเป็นคลิปวิดีโอสำเร็จรูป"),
+        ]
+
+        p_grid = ttk.Frame(c1)
+        p_grid.pack(fill="x", pady=4)
+        for key, title, desc in plats_info:
+            row = ttk.Frame(p_grid)
+            row.pack(fill="x", pady=3)
+            chk = ttk.Checkbutton(row, text=title, variable=self.worker_plat_vars[key])
+            chk.pack(side="left", padx=(0, 10))
+            ttk.Label(row, text=f"— {desc}", foreground=MUTED, font=(self.F, 9)).pack(side="left")
+
+        # ---------------- CARD 2: SCHEDULE TIME SLOTS (5, 7, 10, 15) ----------------
+        c2 = ttk.Frame(sch_box, style="Card.TFrame", padding=14)
+        c2.pack(fill="x", pady=(0, 10))
+
+        c2_head = ttk.Frame(c2)
+        c2_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c2_head, text="2. กำหนดเวลาทำงานของพนักงาน (เลือกได้หลายเวลาต่อวัน)", font=(self.F, 12, "bold")).pack(side="left")
+        ttk.Label(c2_head, text="กดปุ่มเพิ่มเวลาด่วน (5, 7, 10, 15 เวลา) หรือระบุเวลากำหนดเองได้ไม่จำกัด", foreground=MUTED,
+                  font=(self.F, 10)).pack(side="left", padx=8)
+
+        # Quick preset buttons (5, 7, 10, 15)
+        pre_row = ttk.Frame(c2)
+        pre_row.pack(fill="x", pady=(4, 8))
+        ttk.Label(pre_row, text="⚡ ปุ่มเพิ่มเวลาด่วน:", font=(self.F, 10, "bold")).pack(side="left", padx=(0, 10))
+
+        for n in (5, 7, 10, 15):
+            tk.Button(
+                pre_row,
+                text=f"⚡ {n} เวลาต่อวัน",
+                font=(self.F, 9, "bold"),
+                bg="#F0EBFF",
+                fg=ACCENT_D,
+                activebackground=ACCENT,
+                activeforeground="#FFFFFF",
+                relief="flat",
+                bd=1,
+                padx=12,
+                pady=4,
+                cursor="hand2",
+                command=lambda count=n: self._apply_worker_preset(count),
+            ).pack(side="left", padx=4)
+
+        # Custom time add row
+        add_row = ttk.Frame(c2)
+        add_row.pack(fill="x", pady=(4, 8))
+        ttk.Label(add_row, text="➕ เพิ่มเวลากำหนดเอง:", font=(self.F, 10, "bold")).pack(side="left", padx=(0, 10))
+
+        self.worker_add_hh = tk.StringVar(value="08")
+        self.worker_add_mm = tk.StringVar(value="30")
+        ttk.Spinbox(add_row, from_=0, to=23, width=3, textvariable=self.worker_add_hh, format="%02.0f", wrap=True,
+                    font=(self.F, 11)).pack(side="left", padx=(0, 2))
+        ttk.Label(add_row, text=":", font=(self.F, 11, "bold")).pack(side="left")
+        ttk.Spinbox(add_row, from_=0, to=59, increment=5, width=3, textvariable=self.worker_add_mm, format="%02.0f",
+                    wrap=True, font=(self.F, 11)).pack(side="left", padx=(2, 10))
+
+        ttk.Button(add_row, text="➕ เพิ่มเวลานี้", command=self._add_worker_custom_time).pack(side="left", padx=(0, 10))
+        ttk.Button(add_row, text="🗑 ล้างเวลาทั้งหมด", command=self._clear_worker_times).pack(side="left")
+
+        # Container for visual time chips/tags
+        tags_box = tk.Frame(c2, bg="#FAF9FF", bd=1, relief="solid")
+        tags_box.pack(fill="x", pady=(6, 4))
+        self.worker_tags_inner = ttk.Frame(tags_box, padding=10)
+        self.worker_tags_inner.pack(fill="x")
+
+        self.lbl_worker_times_summary = ttk.Label(c2, text="รวมทั้งหมด: 0 เวลาต่อวัน", font=(self.F, 9, "bold"), foreground=ACCENT_D)
+        self.lbl_worker_times_summary.pack(anchor="w", pady=(2, 0))
+
+        # ---------------- CARD 3: STATUS & CONTROLS ----------------
+        c3 = ttk.Frame(sch_box, style="Card.TFrame", padding=14)
+        c3.pack(fill="x", pady=(0, 10))
+
+        c3_head = ttk.Frame(c3)
+        c3_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c3_head, text="3. ควบคุมระบบ & สถานะการทำงานทันที", font=(self.F, 12, "bold")).pack(side="left")
+
+        # Status badge banner
+        self.worker_status_banner = tk.Frame(c3, bg="#F5F3FA", bd=1, relief="solid")
+        self.worker_status_banner.pack(fill="x", pady=(4, 10))
+        s_inner = ttk.Frame(self.worker_status_banner, padding=10)
+        s_inner.pack(fill="x")
+
+        self.lbl_worker_status_icon = ttk.Label(s_inner, text="⚪", font=(self.F, 16))
+        self.lbl_worker_status_icon.pack(side="left", padx=(0, 10))
+
+        s_info = ttk.Frame(s_inner)
+        s_info.pack(side="left", fill="x", expand=True)
+        self.lbl_worker_status_text = ttk.Label(s_info, text="ระบบพนักงานอัตโนมัติ: ปิดอยู่", font=(self.F, 11, "bold"))
+        self.lbl_worker_status_text.pack(anchor="w")
+        self.lbl_worker_next_run = ttk.Label(s_info, text="รอบต่อไป: ยังไม่ได้กำหนด", foreground=MUTED, font=(self.F, 9))
+        self.lbl_worker_next_run.pack(anchor="w", pady=(2, 0))
+
+        # Control action buttons
+        ctl_row = ttk.Frame(c3)
+        ctl_row.pack(fill="x", pady=(4, 2))
+
+        self.btn_worker_save_enable = ttk.Button(
+            ctl_row,
+            text="💾 บันทึกและเปิดระบบตั้งเวลา (Save & Enable)",
+            style="Accent.TButton",
+            command=self._save_and_enable_worker_schedule
+        )
+        self.btn_worker_save_enable.pack(side="left", padx=(0, 10))
+
+        self.btn_worker_test_now = ttk.Button(
+            ctl_row,
+            text="🚀 ทดสอบให้พนักงานทำงานทันที (Test Run Now)",
+            command=self._test_run_worker_now
+        )
+        self.btn_worker_test_now.pack(side="left", padx=(0, 10))
+
+        self.btn_worker_disable = ttk.Button(
+            ctl_row,
+            text="⏹ ปิดระบบตั้งเวลา",
+            style="Danger.TButton",
+            command=self._disable_worker_schedule
+        )
+        self.btn_worker_disable.pack(side="left")
+
+        # ---------------- CARD 4: RECENT ACTIVITY LOG ----------------
+        c4 = ttk.Frame(sch_box, style="Card.TFrame", padding=14)
+        c4.pack(fill="x", pady=(0, 10))
+
+        c4_head = ttk.Frame(c4)
+        c4_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c4_head, text="4. ประวัติการทำงานของพนักงานล่าสุด (Activity Log)", font=(self.F, 12, "bold")).pack(side="left")
+        ttk.Button(c4_head, text="🔄 รีเฟรช", command=self.refresh_worker_schedule_ui).pack(side="right")
+
+        self.txt_worker_history = tk.Text(c4, height=5, font=(self.F, 9), relief="solid", bd=1,
+                                          highlightthickness=0, wrap="word", bg="#FAF9FF")
+        self.txt_worker_history.pack(fill="x", pady=(2, 4))
+
+        # ---------------- CARD 5: TIPS & GUIDELINES ----------------
+        c5 = ttk.Frame(sch_box, style="Card.TFrame", padding=14)
+        c5.pack(fill="x", pady=(0, 10))
+        ttk.Label(c5, text="💡 ข้อควรรู้ & คำแนะนำ", font=(self.F, 11, "bold")).pack(anchor="w", pady=(0, 4))
+        tips_text = (
+            "• ระบบตั้งเวลาทำงานได้ 2 ทางพร้อมกันแบบ Real-time:\n"
+            "   1) เมื่อเปิดโปรแกรมไว้: มี In-App Timer คอยตรวจทุกนาที ถึงเวลาจะสั่งพนักงานทำงานทันที\n"
+            "   2) เมื่อปิดโปรแกรมไว้: Windows Task Scheduler จะสั่งปลุกรันพนักงานอัตโนมัติผ่าน run_worker_auto.bat\n"
+            "• สำหรับ Facebook Profile: กรุณากดปุ่ม 'เข้าสู่ระบบ Facebook (ทำครั้งเดียว)' ในแท็บ FaceBook Profile ก่อน เพื่อให้พนักงานมีสิทธิ์เข้าถึงบัญชี\n"
+            "• สามารถเพิ่มช่วงเวลาได้ไม่จำกัด เช่น 5, 7, 10, 15 เวลา หรือกดปุ่มเพิ่มเวลาด่วนเพื่อกระจายเวลาทำงานตลอดวันได้ทันที"
+        )
+        ttk.Label(c5, text=tips_text, wraplength=980, justify="left", font=(self.F, 9), foreground=MUTED).pack(anchor="w")
+
+        # Initialize schedule data
+        self.worker_times = []
+        self.hh = self.worker_add_hh
+        self.mm = self.worker_add_mm
+        self.sched_now = self.lbl_worker_status_text
+        self.refresh_worker_schedule_ui()
+
+    def _render_worker_time_tags(self):
+        for widget in self.worker_tags_inner.winfo_children():
+            widget.destroy()
+
+        from . import ai_worker_scheduler as sch
+        self.worker_times = sch.normalize_times(self.worker_times)
+
+        if not self.worker_times:
+            ttk.Label(self.worker_tags_inner, text="ยังไม่ได้เพิ่มเวลา (กดปุ่ม '⚡ ปุ่มเพิ่มเวลาด่วน' ด้านบน หรือระบุเวลาแล้วกด '+ เพิ่มเวลานี้')",
+                      foreground=MUTED, font=(self.F, 9)).pack(anchor="w", pady=4)
+            self.lbl_worker_times_summary.configure(text="รวมทั้งหมด: 0 เวลาต่อวัน")
+            return
+
+        self.lbl_worker_times_summary.configure(
+            text=f"รวมทั้งหมด: {len(self.worker_times)} เวลาต่อวัน ({', '.join(self.worker_times)})"
+        )
+
+        chip_frame = ttk.Frame(self.worker_tags_inner)
+        chip_frame.pack(fill="x")
+
+        for hhmm in self.worker_times:
+            chip = tk.Frame(chip_frame, bg="#EDE9FE", bd=1, relief="solid")
+            chip.pack(side="left", padx=4, pady=4)
+
+            lbl = tk.Label(chip, text=f"⏰ {hhmm}", font=(self.F, 9, "bold"), bg="#EDE9FE", fg=ACCENT_D)
+            lbl.pack(side="left", padx=(6, 2), pady=3)
+
+            btn_del = tk.Button(
+                chip,
+                text="✕",
+                font=(self.F, 8, "bold"),
+                bg="#EDE9FE",
+                fg="#9333EA",
+                activebackground=BAD,
+                activeforeground="#FFFFFF",
+                relief="flat",
+                bd=0,
+                cursor="hand2",
+                command=lambda t=hhmm: self._remove_worker_time(t),
+            )
+            btn_del.pack(side="right", padx=(2, 6), pady=3)
+
+    def _apply_worker_preset(self, count):
+        from . import ai_worker_scheduler as sch
+        self.worker_times = sch.get_preset_times(count)
+        self._render_worker_time_tags()
+        self.say(f"ตั้งค่าเวลาด่วน {count} เวลาต่อวันเรียบร้อยแล้ว (อย่าลืมกด 'บันทึกและเปิดระบบ')", "info")
+
+    def _add_worker_custom_time(self):
+        try:
+            h = int(self.worker_add_hh.get())
+            m = int(self.worker_add_mm.get())
+            assert 0 <= h <= 23 and 0 <= m <= 59
+            hhmm = f"{h:02d}:{m:02d}"
+        except Exception:
+            messagebox.showwarning("เวลาไม่ถูกต้อง", "กรุณาระบุชั่วโมง 00-23 และนาที 00-59")
+            return
+        if hhmm not in self.worker_times:
+            self.worker_times.append(hhmm)
+            self._render_worker_time_tags()
+            self.say(f"เพิ่มเวลา {hhmm} แล้ว", "info")
+        else:
+            messagebox.showinfo("เวลาซ้ำ", f"เวลา {hhmm} มีอยู่ในรายการแล้ว")
+
+    def _remove_worker_time(self, hhmm):
+        if hhmm in self.worker_times:
+            self.worker_times.remove(hhmm)
+            self._render_worker_time_tags()
+
+    def _clear_worker_times(self):
+        if self.worker_times and messagebox.askyesno("ล้างเวลา", "ต้องการลบเวลาทั้งหมดใช่หรือไม่?"):
+            self.worker_times = []
+            self._render_worker_time_tags()
+
+    def _save_and_enable_worker_schedule(self):
+        from . import ai_worker_scheduler as sch
+        if not self.worker_times:
+            messagebox.showwarning("ยังไม่ได้กำหนดเวลา", "กรุณาเพิ่มเวลาทำงานอย่างน้อย 1 เวลา (กดปุ่ม 5, 7, 10, 15 เวลาด้านบน)")
+            return
+
+        active_plats = {k: v.get() for k, v in self.worker_plat_vars.items()}
+        if not any(active_plats.values()):
+            messagebox.showwarning("ยังไม่ได้เลือกแพลตฟอร์ม", "กรุณาเลือกแพลตฟอร์มที่ต้องการให้พนักงานทำงานอย่างน้อย 1 แพลตฟอร์ม")
+            return
+
+        cfg = sch.load_schedule()
+        cfg["enabled"] = True
+        cfg["platforms"] = active_plats
+        cfg["times"] = sch.normalize_times(self.worker_times)
+        sch.save_schedule(cfg)
+
+        ok_count, msg = sch.apply_windows_scheduled_tasks(cfg["times"])
+
+        self.refresh_worker_schedule_ui()
+        self.say(f"เปิดระบบตั้งเวลาพนักงาน AI เรียบร้อย ({len(cfg['times'])} เวลาต่อวัน) - {msg}", "good")
+        messagebox.showinfo(
+            "เปิดระบบตั้งเวลาเรียบร้อย",
+            f"เปิดระบบพนักงาน AI อัตโนมัติเรียบร้อยแล้ว!\n\n"
+            f"• จำนวนรอบทำงาน: {len(cfg['times'])} เวลาต่อวัน\n"
+            f"• แพลตฟอร์ม: {', '.join(k for k, v in active_plats.items() if v)}\n"
+            f"• {msg}\n\n"
+            f"เมื่อถึงเวลาที่กำหนด พนักงานจะทำงานให้อัตโนมัติทันที!"
+        )
+
+    def _disable_worker_schedule(self):
+        if not messagebox.askyesno("ปิดระบบตั้งเวลา", "ต้องการปิดระบบพนักงานทำงานอัตโนมัติใช่หรือไม่?"):
+            return
+        from . import ai_worker_scheduler as sch
+        cfg = sch.load_schedule()
+        cfg["enabled"] = False
+        sch.save_schedule(cfg)
+        sch.remove_windows_scheduled_tasks()
+        self.refresh_worker_schedule_ui()
+        self.say("ปิดระบบตั้งเวลาพนักงาน AI เรียบร้อยแล้ว", "info")
+
+    def _test_run_worker_now(self):
+        from . import ai_worker_scheduler as sch
+        active_plats = [k for k, v in self.worker_plat_vars.items() if v.get()]
+        if not active_plats:
+            messagebox.showwarning("เลือกแพลตฟอร์ม", "เลือกแพลตฟอร์มอย่างน้อย 1 แพลตฟอร์มเพื่อทดสอบ")
+            return
+
+        self.btn_worker_test_now.configure(state="disabled", text="⏳ พนักงานกำลังทำงาน...")
+        self.say("เริ่มทดสอบการทำงานของพนักงาน AI ทันที...", "info")
+
+        def task():
+            try:
+                res = sch.execute_worker_job(platforms=active_plats, log=self.say)
+                self.after(0, lambda: self._on_worker_test_done(res))
+            except Exception as e:
+                self.after(0, lambda err=str(e): self._on_worker_test_error(err))
+
+        threading.Thread(target=task, daemon=True).start()
+
+    def _on_worker_test_done(self, res):
+        self.btn_worker_test_now.configure(state="normal", text="🚀 ทดสอบให้พนักงานทำงานทันที (Test Run Now)")
+        self.refresh_worker_schedule_ui()
+        self.say(f"ทดสอบพนักงาน AI เสร็จสิ้น: สำเร็จ {res.get('success_count', 0)} งาน", "good")
+        messagebox.showinfo("ทดสอบสำเร็จ", f"พนักงาน AI ทำงานเสร็จเรียบร้อยแล้ว!\n\nผลลัพธ์:\n{json.dumps(res.get('results', {}), ensure_ascii=False, indent=2)}")
+
+    def _on_worker_test_error(self, err_msg):
+        self.btn_worker_test_now.configure(state="normal", text="🚀 ทดสอบให้พนักงานทำงานทันที (Test Run Now)")
+        self.say(f"ทดสอบพนักงานผิดพลาด: {err_msg}", "bad")
+        messagebox.showerror("เกิดข้อผิดพลาด", f"การทำงานของพนักงานผิดพลาด:\n{err_msg}")
+
+    def refresh_worker_schedule_ui(self):
+        from . import ai_worker_scheduler as sch
+        cfg = sch.load_schedule()
+        enabled = cfg.get("enabled", False)
+
+        for k, var in self.worker_plat_vars.items():
+            if k in cfg.get("platforms", {}):
+                var.set(bool(cfg["platforms"][k]))
+
+        self.worker_times = cfg.get("times", [])
+        self._render_worker_time_tags()
+
+        next_hhmm, next_str = sch.get_next_run(self.worker_times)
+
+        if enabled:
+            self.lbl_worker_status_icon.configure(text="🟢")
+            self.lbl_worker_status_text.configure(
+                text="ระบบพนักงานอัตโนมัติ: กำลังเปิดใช้งาน (Active)",
+                foreground=GOOD
+            )
+            self.lbl_worker_next_run.configure(
+                text=f"รอบต่อไป: {next_str}",
+                foreground=ACCENT_D
+            )
+            if hasattr(self, "stat_vals") and "next" in self.stat_vals:
+                self.stat_vals["next"].configure(text=next_hhmm or "เปิด")
+        else:
+            self.lbl_worker_status_icon.configure(text="⚪")
+            self.lbl_worker_status_text.configure(
+                text="ระบบพนักงานอัตโนมัติ: ปิดอยู่ (Disabled)",
+                foreground=WARN
+            )
+            self.lbl_worker_next_run.configure(
+                text="กดปุ่ม 'บันทึกและเปิดระบบตั้งเวลา' ด้านล่างเพื่อเริ่มการทำงานอัตโนมัติ",
+                foreground=MUTED
+            )
+            if hasattr(self, "stat_vals") and "next" in self.stat_vals:
+                self.stat_vals["next"].configure(text="ปิด")
+
+        if hasattr(self, "txt_worker_history"):
+            self.txt_worker_history.delete("1.0", "end")
+            hist = cfg.get("history", [])
+            if not hist:
+                self.txt_worker_history.insert("1.0", "(ยังไม่มีประวัติการทำงาน - เมื่อถึงเวลาพนักงานจะบันทึกผลการทำงานที่นี่)")
+            else:
+                lines = []
+                for item in hist[:8]:
+                    t = item.get("time", "")
+                    res = item.get("results", {})
+                    res_str = ", ".join(f"{k}: {v}" for k, v in res.items())
+                    lines.append(f"• [{t}] {res_str}")
+                self.txt_worker_history.insert("1.0", "\n".join(lines))
+
+    def _worker_heartbeat(self):
+        try:
+            from . import ai_worker_scheduler as sch
+            cfg = sch.load_schedule()
+            if cfg.get("enabled"):
+                times = sch.normalize_times(cfg.get("times", []))
+                now_hhmm = dt.datetime.now().strftime("%H:%M")
+                if now_hhmm in times and getattr(self, "_last_worker_minute", None) != now_hhmm:
+                    self._last_worker_minute = now_hhmm
+                    self.say(f"⏰ ถึงเวลา {now_hhmm} น.: พนักงาน AI กำลังทำงานทันที...", "good")
+                    def run():
+                        sch.execute_worker_job(log=self.say)
+                        self.after(0, self.refresh_worker_schedule_ui)
+                    threading.Thread(target=run, daemon=True).start()
+
+                if hasattr(self, "lbl_worker_next_run"):
+                    _, next_str = sch.get_next_run(times)
+                    self.lbl_worker_next_run.configure(text=f"รอบต่อไป: {next_str}")
+        except Exception:
+            pass
+        finally:
+            self.after(15000, self._worker_heartbeat)
 
     def refresh_schedule(self):
-        def work():
-            if not IS_WIN:
-                self.q.put(("sched", None))
-                return
-            out = self._ps(
-                "$t = Get-ScheduledTask -TaskName '%s' -ErrorAction SilentlyContinue; "
-                "if ($t) { $i = Get-ScheduledTaskInfo -TaskName '%s'; "
-                "([datetime]$t.Triggers[0].StartBoundary).ToString('HH:mm') + '|' + "
-                "$i.NextRunTime.ToString('yyyy-MM-dd HH:mm') + '|' + $t.State }" % (TASK_NAME, TASK_NAME))
-            self.q.put(("sched", out or None))
-
-        threading.Thread(target=work, daemon=True).start()
+        self.refresh_worker_schedule_ui()
 
     def save_schedule(self):
-        try:
-            h, m = int(self.hh.get()), int(self.mm.get())
-            assert 0 <= h <= 23 and 0 <= m <= 59
-        except Exception:
-            messagebox.showwarning("ตั้งเวลา", "เวลาไม่ถูกต้อง")
-            return
-        hhmm = "%02d:%02d" % (h, m)
-        if not IS_WIN:
-            messagebox.showinfo("ตั้งเวลา", "ใช้ได้บน Windows เท่านั้น")
-            return
-        (ROOT / "logs").mkdir(exist_ok=True)
-        bat = ROOT / "run_batch_auto.bat"
-        r = subprocess.run(["schtasks", "/Create", "/F", "/TN", TASK_NAME, "/SC", "DAILY", "/ST", hhmm,
-                            "/TR", '"%s"' % bat], capture_output=True, text=True, **NOWIN)
-        if r.returncode == 0:
-            self.say("ตั้งเวลาสร้างคลิปทุกวัน %s แล้ว" % hhmm, "good")
-        else:
-            self.say("ตั้งเวลาไม่สำเร็จ: %s" % (r.stdout + r.stderr).strip(), "bad")
-        self.refresh_schedule()
+        self._save_and_enable_worker_schedule()
 
     def remove_schedule(self):
-        if not messagebox.askyesno("ปิดการสร้างอัตโนมัติ", "หยุดให้ Windows สร้างคลิปเองทุกวัน?"):
-            return
-        if IS_WIN:
-            subprocess.run(["schtasks", "/Delete", "/F", "/TN", TASK_NAME], capture_output=True, **NOWIN)
-        self.say("ปิดการสร้างอัตโนมัติแล้ว")
-        self.refresh_schedule()
+        self._disable_worker_schedule()
 
     # ------------------------------------------------------------------ settings tab
     def _build_settings(self):
@@ -3321,6 +3662,8 @@ class StudioApp(tk.Tk):
 
     # ------------------------------------------------------------------ misc
     def say(self, text, tag=None, stamp=True):
+        if not hasattr(self, "log"):
+            return
         if stamp:
             text = "[%s] %s" % (dt.datetime.now().strftime("%H:%M:%S"), text)
         self.log.insert("end", text + "\n", (tag,) if tag else ())
@@ -3347,6 +3690,637 @@ class StudioApp(tk.Tk):
             self.refresh_schedule()
         except Exception as e:
             self.say("รีเฟรชไม่สำเร็จ: %s" % e, "bad")
+
+    # ------------------------------------------------------------------ Facebook Profile Studio tab
+    def _build_fb_profile(self):
+        t = self.tab_fb_profile
+
+        # Header bar
+        bar = ttk.Frame(t)
+        bar.pack(fill="x", pady=(0, 6))
+        ttk.Label(bar, text="Facebook Profile Studio", style="H1.TLabel").pack(side="left")
+        ttk.Label(bar, text="สร้างคลิปโปรโมทสินค้า Shopee ด้วย Google Flow และโพสต์ไปยัง Facebook Profile ในหน้าเดียว",
+                  foreground=MUTED, font=(self.F, 10)).pack(side="left", padx=14, pady=3)
+        ttk.Button(bar, text="🔄 รีเฟรชสินค้า Shopee", command=self._refresh_fb_products).pack(side="right")
+
+        # Main PanedWindow (Allows dragging divider to expand left or right freely!)
+        main = ttk.PanedWindow(t, orient="horizontal")
+        main.pack(fill="both", expand=True)
+
+        # ---------------- LEFT PANE: Shopee Products (Dynamic expand) ----------------
+        left = ttk.Frame(main, padding=(0, 0, 10, 0))
+        main.add(left, weight=1)
+
+        # Filter Card
+        f_card = ttk.Frame(left, style="Card.TFrame", padding=10)
+        f_card.pack(fill="x", pady=(0, 6))
+
+        r1 = ttk.Frame(f_card)
+        r1.pack(fill="x")
+        ttk.Label(r1, text="🔍", font=(self.F, 10)).pack(side="left", padx=(0, 4))
+        self.fb_search_var = tk.StringVar()
+        self.fb_search_entry = ttk.Entry(r1, textvariable=self.fb_search_var)
+        self.fb_search_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.fb_search_entry.bind("<KeyRelease>", lambda e: self._filter_fb_products())
+
+        ttk.Label(r1, text="หมวด:").pack(side="left", padx=(4, 4))
+        self.fb_cat_var = tk.StringVar(value="ทุกหมวดหมู่")
+        self.fb_cat_cb = ttk.Combobox(r1, textvariable=self.fb_cat_var, state="readonly", width=18)
+        self.fb_cat_cb.pack(side="left")
+        self.fb_cat_cb.bind("<<ComboboxSelected>>", lambda e: self._filter_fb_products())
+
+        # Product Table Card (Expanded width with both V & H scrollbars)
+        tv_frame = ttk.Frame(left, style="Card.TFrame", padding=2)
+        tv_frame.pack(fill="both", expand=True)
+
+        cols = ("name", "price", "sold", "rating")
+        self.tv_fb = ttk.Treeview(tv_frame, columns=cols, show="headings", selectmode="browse", height=14)
+        self.tv_fb.heading("name", text="ชื่อสินค้า Shopee (กดเพื่อเลือกสินค้า)")
+        self.tv_fb.column("name", width=520, minwidth=280, stretch=True)
+        self.tv_fb.heading("price", text="ราคา")
+        self.tv_fb.column("price", width=90, minwidth=75, anchor="e")
+        self.tv_fb.heading("sold", text="ขายแล้ว")
+        self.tv_fb.column("sold", width=85, minwidth=70, anchor="e")
+        self.tv_fb.heading("rating", text="⭐ เรตติ้ง")
+        self.tv_fb.column("rating", width=65, minwidth=50, anchor="center")
+
+        tv_vscroll = ttk.Scrollbar(tv_frame, orient="vertical", command=self.tv_fb.yview)
+        tv_hscroll = ttk.Scrollbar(tv_frame, orient="horizontal", command=self.tv_fb.xview)
+        self.tv_fb.configure(yscrollcommand=tv_vscroll.set, xscrollcommand=tv_hscroll.set)
+
+        self.tv_fb.grid(row=0, column=0, sticky="nsew")
+        tv_vscroll.grid(row=0, column=1, sticky="ns")
+        tv_hscroll.grid(row=1, column=0, sticky="ew")
+        tv_frame.columnconfigure(0, weight=1)
+        tv_frame.rowconfigure(0, weight=1)
+        self.tv_fb.bind("<<TreeviewSelect>>", self._on_fb_product_selected)
+
+        # Product Detail Card (bottom of left pane, expanded width)
+        p_card = ttk.Frame(left, style="Card.TFrame", padding=12)
+        p_card.pack(fill="x", pady=(8, 0))
+
+        p_row = ttk.Frame(p_card)
+        p_row.pack(fill="x")
+        self.fb_thumb_lbl = tk.Label(p_row, bg="#F0EBFF", width=14, height=7, text="[รูปสินค้า]", fg=MUTED)
+        self.fb_thumb_lbl.pack(side="left", padx=(0, 12))
+
+        p_info = ttk.Frame(p_row)
+        p_info.pack(side="left", fill="both", expand=True)
+
+        self.fb_p_title = ttk.Label(p_info, text="ยังไม่ได้เลือกสินค้า", font=(self.F, 11, "bold"),
+                                    wraplength=580, justify="left")
+        self.fb_p_title.pack(anchor="w", pady=(0, 3))
+
+        self.fb_p_price = ttk.Label(p_info, text="", font=(self.F, 12, "bold"), foreground=BAD)
+        self.fb_p_price.pack(anchor="w")
+
+        self.fb_p_shop = ttk.Label(p_info, text="", foreground=MUTED, font=(self.F, 9))
+        self.fb_p_shop.pack(anchor="w", pady=(2, 4))
+
+        p_btns = ttk.Frame(p_info)
+        p_btns.pack(fill="x", pady=(2, 0))
+        self.btn_fb_open_shopee = ttk.Button(p_btns, text="🌐 เปิดหน้า Shopee", state="disabled",
+                                             command=self._open_selected_shopee)
+        self.btn_fb_open_shopee.pack(side="left")
+
+        # ---------------- RIGHT PANE: Studio Dashboard (Scrollable & Expands) ----------------
+        right = ttk.Frame(main, padding=(10, 0, 0, 0))
+        main.add(right, weight=1)
+
+        r_canvas = tk.Canvas(right, bg=BG, highlightthickness=0)
+        r_scroll = ttk.Scrollbar(right, orient="vertical", command=r_canvas.yview)
+        r_box = ttk.Frame(r_canvas)
+        r_win = r_canvas.create_window((0, 0), window=r_box, anchor="nw")
+
+        r_box.bind("<Configure>", lambda e: r_canvas.configure(scrollregion=r_canvas.bbox("all")))
+        r_canvas.bind("<Configure>", lambda e: r_canvas.itemconfigure(r_win, width=e.width - 6))
+
+        r_canvas.configure(yscrollcommand=r_scroll.set)
+        r_canvas.pack(side="left", fill="both", expand=True)
+        r_scroll.pack(side="right", fill="y")
+
+        # --- SECTION 1: Flow Video Prompt Studio ---
+        c1 = ttk.Frame(r_box, style="Card.TFrame", padding=14)
+        c1.pack(fill="x", pady=(0, 10))
+
+        c1_head = ttk.Frame(c1)
+        c1_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c1_head, text="1. สร้างวิดีโอพรอมต์ Google Flow", font=(self.F, 12, "bold")).pack(side="left")
+        ttk.Label(c1_head, text="(เลือกความยาว 8 / 10 / 12 / 15 วินาที และสไตล์)", foreground=MUTED,
+                  font=(self.F, 10)).pack(side="left", padx=8)
+
+        # Duration Selector: 8s, 10s, 12s, 15s
+        dur_row = ttk.Frame(c1)
+        dur_row.pack(fill="x", pady=(2, 6))
+        ttk.Label(dur_row, text="ความยาววิดีโอ:", font=(self.F, 10, "bold")).pack(side="left", padx=(0, 10))
+
+        self.fb_dur_val = tk.IntVar(value=8)
+        self.fb_dur_btns = {}
+        for sec in (8, 10, 12, 15):
+            b = tk.Button(
+                dur_row,
+                text=f"⚡ {sec} วินาที",
+                font=(self.F, 9, "bold" if sec == 8 else "normal"),
+                bg=ACCENT if sec == 8 else "#FFFFFF",
+                fg="#FFFFFF" if sec == 8 else "#5A5174",
+                activebackground=ACCENT_D,
+                activeforeground="#FFFFFF",
+                relief="flat",
+                bd=1,
+                padx=14,
+                pady=5,
+                cursor="hand2",
+                command=lambda s=sec: self._set_fb_duration(s),
+            )
+            b.pack(side="left", padx=4)
+            self.fb_dur_btns[sec] = b
+
+        # Style Selector
+        style_row = ttk.Frame(c1)
+        style_row.pack(fill="x", pady=(4, 6))
+        ttk.Label(style_row, text="สไตล์วิดีโอ:", font=(self.F, 10, "bold")).pack(side="left", padx=(0, 10))
+
+        self.fb_style_choices = [
+            ("พรีเซนเตอร์ถือสินค้า", "presenter"),
+            ("ปัญหา → ทางออก", "problem"),
+            ("แกะกล่องสินค้า", "unboxing"),
+            ("เสียงและภาพใกล้ (ASMR)", "asmr"),
+            ("การ์ตูน 3D สดใส", "cartoon"),
+        ]
+        self.fb_style_map = {lbl: key for lbl, key in self.fb_style_choices}
+        self.fb_style_labels = [lbl for lbl, _ in self.fb_style_choices]
+        self.fb_style_cb = ttk.Combobox(style_row, values=self.fb_style_labels, state="readonly", width=28)
+        self.fb_style_cb.current(0)
+        self.fb_style_cb.pack(side="left")
+        self.fb_style_cb.bind("<<ComboboxSelected>>", lambda e: self._update_fb_prompt())
+
+        # Prompt Box
+        self.txt_fb_prompt = tk.Text(c1, height=7, font=(self.F, 10), relief="solid", bd=1,
+                                     highlightthickness=0, wrap="word", bg="#FAF9FF")
+        self.txt_fb_prompt.pack(fill="x", pady=(4, 8))
+
+        # Explicitly Separated Action Buttons!
+        p_actions = ttk.Frame(c1)
+        p_actions.pack(fill="x")
+        ttk.Button(p_actions, text="📋 คัดลอกพรอมต์ Flow", command=self._copy_fb_prompt).pack(side="left", padx=(0, 8))
+        ttk.Button(p_actions, text="🚀 ส่งพรอมต์และรูปภาพไปที่ Flow", style="Accent.TButton",
+                   command=self._send_fb_to_flow).pack(side="left")
+        ttk.Button(p_actions, text="🔄 สร้างพรอมต์ใหม่", command=self._update_fb_prompt).pack(side="right")
+
+        # --- SECTION 2: Facebook Caption & @ผู้ติดตาม ---
+        c2 = ttk.Frame(r_box, style="Card.TFrame", padding=14)
+        c2.pack(fill="x", pady=(0, 10))
+
+        c2_head = ttk.Frame(c2)
+        c2_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c2_head, text="2. แคปชั่น Facebook Profile (@ผู้ติดตาม)", font=(self.F, 12, "bold")).pack(side="left")
+        ttk.Label(c2_head, text="เตรียมข้อความโปรโมท + แท็ก @ผู้ติดตาม + แฮชแท็ก + ลิงก์", foreground=MUTED,
+                  font=(self.F, 10)).pack(side="left", padx=8)
+
+        self.txt_fb_caption = tk.Text(c2, height=8, font=(self.F, 10), relief="solid", bd=1,
+                                      highlightthickness=0, wrap="word", bg="#FAF9FF")
+        self.txt_fb_caption.pack(fill="x", pady=(2, 8))
+
+        cap_actions = ttk.Frame(c2)
+        cap_actions.pack(fill="x")
+        ttk.Button(cap_actions, text="📋 คัดลอกแคปชั่น", command=self._copy_fb_caption).pack(side="left", padx=(0, 8))
+        ttk.Button(cap_actions, text="🔄 รีเซ็ตแคปชั่นเดิม", command=self._update_fb_caption).pack(side="left")
+
+        # --- SECTION 3: Video Import & Facebook Profile Publishing ---
+        c3 = ttk.Frame(r_box, style="Card.TFrame", padding=14)
+        c3.pack(fill="x", pady=(0, 10))
+
+        c3_head = ttk.Frame(c3)
+        c3_head.pack(fill="x", pady=(0, 6))
+        ttk.Label(c3_head, text="3. นำวิดีโอกลับมา & โพสต์ไปที่ Facebook Profile", font=(self.F, 12, "bold")).pack(side="left")
+        ttk.Label(c3_head, text="นำเข้าคลิปวิดีโอจาก Flow และโพสต์ไปที่ Facebook Profile", foreground=MUTED,
+                  font=(self.F, 10)).pack(side="left", padx=8)
+
+        v_actions = ttk.Frame(c3)
+        v_actions.pack(fill="x", pady=(2, 8))
+        ttk.Button(v_actions, text="📂 เลือกไฟล์วิดีโอจาก Flow (.mp4)", command=self._choose_fb_video).pack(side="left", padx=(0, 8))
+        ttk.Button(v_actions, text="⚡ ค้นหาวิดีโอล่าสุดจาก Downloads", command=self._find_latest_fb_video).pack(side="left")
+
+        # Video banner
+        self.fb_vid_banner = tk.Frame(c3, bg="#F5F3FA", bd=1, relief="solid")
+        self.fb_vid_banner.pack(fill="x", pady=(4, 10))
+        v_inner = ttk.Frame(self.fb_vid_banner, padding=10)
+        v_inner.pack(fill="x")
+        self.lbl_fb_video_status = ttk.Label(v_inner, text="ยังไม่ได้เลือกไฟล์วิดีโอ (กดเลือกไฟล์ด้านบน)", font=(self.F, 10))
+        self.lbl_fb_video_status.pack(side="left", fill="x", expand=True)
+        self.btn_fb_play_vid = ttk.Button(v_inner, text="▶ เล่นวิดีโอ", state="disabled", command=self._play_fb_video)
+        self.btn_fb_play_vid.pack(side="right")
+
+        # Automation Worker Sub-card
+        w_card = tk.Frame(c3, bg="#F0EBFF", bd=1, relief="solid")
+        w_card.pack(fill="x", pady=(6, 10))
+        w_inner = ttk.Frame(w_card, padding=12)
+        w_inner.pack(fill="x")
+
+        w_header = ttk.Frame(w_inner)
+        w_header.pack(fill="x", pady=(0, 6))
+        ttk.Label(w_header, text="🤖 พนักงานโพสต์ Facebook อัตโนมัติ (Browser RPA Worker)",
+                  font=(self.F, 11, "bold"), foreground=ACCENT_D).pack(side="left")
+        ttk.Label(w_header, text="ควบคุมเบราว์เซอร์ อัปโหลดคลิป พิมพ์แคปชั่น @ผู้ติดตาม และกดโพสต์ให้เอง 100%",
+                  font=(self.F, 9), foreground=MUTED).pack(side="left", padx=8)
+
+        # Worker controls row
+        w_row = ttk.Frame(w_inner)
+        w_row.pack(fill="x", pady=(4, 6))
+
+        self.btn_fb_worker_run = tk.Button(
+            w_row,
+            text="🚀 สั่งพนักงานโพสต์ Facebook ทันที (Auto-Post)",
+            font=(self.F, 10, "bold"),
+            bg=ACCENT,
+            fg="#FFFFFF",
+            activebackground=ACCENT_D,
+            activeforeground="#FFFFFF",
+            relief="flat",
+            bd=0,
+            padx=14,
+            pady=6,
+            cursor="hand2",
+            command=self._run_fb_browser_worker
+        )
+        self.btn_fb_worker_run.pack(side="left", padx=(0, 10))
+
+        self.fb_worker_auto_pub = tk.BooleanVar(value=True)
+        ttk.Checkbutton(w_row, text="กดยืนยันเผยแพร่อัตโนมัติ (ถ้าไม่ติ๊ก จะเปิดค้างไว้ให้ตรวจทาน)",
+                        variable=self.fb_worker_auto_pub).pack(side="left", padx=(0, 10))
+
+        ttk.Button(w_row, text="🔑 เข้าสู่ระบบ Facebook (ทำครั้งเดียว)",
+                   command=self._open_fb_worker_login).pack(side="right")
+
+        # Worker status label
+        self.lbl_fb_worker_status = ttk.Label(
+            w_inner,
+            text="สถานะพนักงาน: พร้อมทำงาน (เลือกสินค้าและวิดีโอด้านบน แล้วกด 'สั่งพนักงานโพสต์ Facebook ทันที')",
+            font=(self.F, 9),
+            foreground=MUTED
+        )
+        self.lbl_fb_worker_status.pack(anchor="w", pady=(2, 0))
+
+        # Fallback manual actions
+        pub_actions = ttk.Frame(c3)
+        pub_actions.pack(fill="x", pady=(4, 0))
+        ttk.Label(pub_actions, text="ทางเลือกอื่น:", foreground=MUTED, font=(self.F, 9)).pack(side="left", padx=(0, 6))
+        self.btn_fb_publish = ttk.Button(pub_actions, text="📘 เปิด Facebook โพสต์ด้วยตนเอง",
+                                         command=self._publish_to_fb_profile)
+        self.btn_fb_publish.pack(side="left", padx=(0, 10))
+        self.btn_fb_mark_posted = ttk.Button(pub_actions, text="✅ บันทึกว่าโพสต์สำเร็จแล้ว", command=self._mark_fb_posted)
+        self.btn_fb_mark_posted.pack(side="left")
+
+        # Initialize data
+        self.fb_raw_prods = []
+        self.fb_prods = []
+        self.fb_selected_prod = None
+        self.fb_video_path = None
+        self._fb_thumb_img = None
+        self._refresh_fb_products()
+
+    def _refresh_fb_products(self):
+        from . import facebook_profile_flow as fb_flow
+        self.say("กำลังโหลดสินค้า Shopee...")
+        self.fb_raw_prods = fb_flow.load_shopee_products()
+        cats = fb_flow.get_categories()
+        if hasattr(self, "fb_cat_cb"):
+            self.fb_cat_cb.configure(values=cats)
+            if self.fb_cat_var.get() not in cats:
+                self.fb_cat_var.set("ทุกหมวดหมู่")
+        self._filter_fb_products()
+        self.say(f"โหลดสินค้า Shopee {len(self.fb_raw_prods):,} รายการเรียบร้อย", "good")
+
+    def _filter_fb_products(self):
+        search = self.fb_search_var.get().strip().lower()
+        cat = self.fb_cat_var.get()
+        self.tv_fb.delete(*self.tv_fb.get_children())
+        self.fb_prods = []
+
+        for p in self.fb_raw_prods:
+            if cat and cat != "ทุกหมวดหมู่" and p.get("category") != cat:
+                continue
+            if search and search not in p["name"].lower() and search not in p.get("seller_name", "").lower():
+                continue
+            self.fb_prods.append(p)
+            price_txt = f"฿{p['effective_price']:,.2f}".rstrip("0").rstrip(".") if p['effective_price'] > 0 else "-"
+            sold_txt = f"{p['sold_count']:,}" if p['sold_count'] > 0 else "-"
+            rating_txt = f"{p['rating']:.1f}" if p['rating'] > 0 else "-"
+            self.tv_fb.insert("", "end", iid=p["id"], values=(p["name"], price_txt, sold_txt, rating_txt))
+
+        # Select first product if available
+        if self.fb_prods:
+            first_id = self.fb_prods[0]["id"]
+            self.tv_fb.selection_set(first_id)
+            self.tv_fb.see(first_id)
+            self._select_fb_product(self.fb_prods[0])
+
+    def _on_fb_product_selected(self, event=None):
+        sel = self.tv_fb.selection()
+        if not sel:
+            return
+        p_id = sel[0]
+        prod = next((p for p in self.fb_prods if p["id"] == p_id), None)
+        if prod:
+            self._select_fb_product(prod)
+
+    def _select_fb_product(self, prod):
+        self.fb_selected_prod = prod
+        self.fb_p_title.configure(text=prod["name"])
+        price_txt = f"฿{prod['effective_price']:,.2f}".rstrip("0").rstrip(".")
+        if prod.get("original_price") and prod["original_price"] > prod["effective_price"]:
+            orig_txt = f"฿{prod['original_price']:,.2f}".rstrip("0").rstrip(".")
+            self.fb_p_price.configure(text=f"{price_txt} (ปกติ {orig_txt})")
+        else:
+            self.fb_p_price.configure(text=price_txt)
+
+        shop_info = f"🏪 ร้าน: {prod.get('seller_name') or 'Shopee Seller'}  |  ⭐ {prod['rating']:.1f}  |  ขายแล้ว {prod['sold_count']:,} ชิ้น"
+        self.fb_p_shop.configure(text=shop_info)
+        self.btn_fb_open_shopee.configure(state="normal" if prod.get("product_url") else "disabled")
+
+        # Load thumbnail in background thread
+        self._load_fb_thumbnail(prod.get("image_url"), prod["id"])
+
+        # Update prompt & caption
+        self._update_fb_prompt()
+        self._update_fb_caption()
+
+    def _load_fb_thumbnail(self, image_url, product_id):
+        from . import facebook_profile_flow as fb_flow
+        self.fb_thumb_lbl.configure(image="", text="[กำลังโหลด...]", bg="#F0EBFF")
+
+        def work():
+            local_path = fb_flow.download_image_cache(image_url, product_id)
+            if local_path and local_path.is_file():
+                try:
+                    im = Image.open(local_path).convert("RGB")
+                    im = im.resize((110, 110), Image.Resampling.LANCZOS)
+                    tk_img = ImageTk.PhotoImage(im)
+                    self.after(0, lambda: self._apply_fb_thumbnail(tk_img, product_id))
+                    return
+                except Exception:
+                    pass
+            self.after(0, lambda: self.fb_thumb_lbl.configure(image="", text="[ไม่มีรูป]", bg="#F0EBFF"))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _apply_fb_thumbnail(self, tk_img, target_id):
+        if self.fb_selected_prod and self.fb_selected_prod.get("id") == target_id:
+            self._fb_thumb_img = tk_img
+            self.fb_thumb_lbl.configure(image=self._fb_thumb_img, text="", bg="#FFFFFF")
+
+    def _open_selected_shopee(self):
+        if self.fb_selected_prod and self.fb_selected_prod.get("product_url"):
+            open_path(self.fb_selected_prod["product_url"])
+
+    def _set_fb_duration(self, seconds):
+        self.fb_dur_val.set(seconds)
+        for s, btn in self.fb_dur_btns.items():
+            if s == seconds:
+                btn.configure(bg=ACCENT, fg="#FFFFFF", font=(self.F, 9, "bold"))
+            else:
+                btn.configure(bg="#FFFFFF", fg="#5A5174", font=(self.F, 9, "normal"))
+        self._update_fb_prompt()
+
+    def _update_fb_prompt(self):
+        if not self.fb_selected_prod:
+            return
+        from . import facebook_profile_flow as fb_flow
+        dur = self.fb_dur_val.get()
+        style_key = self.fb_style_map.get(self.fb_style_cb.get(), "presenter")
+        prompt = fb_flow.generate_flow_prompt(self.fb_selected_prod, dur, style_key)
+        self.txt_fb_prompt.delete("1.0", "end")
+        self.txt_fb_prompt.insert("1.0", prompt)
+
+    def _update_fb_caption(self):
+        if not self.fb_selected_prod:
+            return
+        from . import facebook_profile_flow as fb_flow
+        caption = fb_flow.generate_facebook_caption(self.fb_selected_prod)
+        self.txt_fb_caption.delete("1.0", "end")
+        self.txt_fb_caption.insert("1.0", caption)
+
+    def _copy_fb_prompt(self):
+        text = self.txt_fb_prompt.get("1.0", "end").strip()
+        if not text:
+            messagebox.showinfo("พรอมต์ Flow", "กรุณาเลือกสินค้าเพื่อสร้างพรอมต์ก่อน")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.say("คัดลอกพรอมต์ Flow แล้ว พร้อมนำไปวางใน Google Flow", "good")
+
+    def _send_fb_to_flow(self):
+        if not self.fb_selected_prod:
+            messagebox.showinfo("Google Flow", "กรุณาเลือกสินค้า Shopee ก่อน")
+            return
+        from . import facebook_profile_flow as fb_flow
+        prompt = self.txt_fb_prompt.get("1.0", "end").strip()
+        if not prompt:
+            self._update_fb_prompt()
+            prompt = self.txt_fb_prompt.get("1.0", "end").strip()
+
+        assets = fb_flow.stage_product_assets_for_flow(self.fb_selected_prod, prompt)
+        self.clipboard_clear()
+        self.clipboard_append(prompt)
+
+        # Open Google Flow
+        open_path("https://flow.google.com/")
+
+        # Open staging folder with the image
+        if assets.get("image_file") and assets["image_file"].is_file():
+            open_path(fb_flow.STAGING_DIR)
+
+        self.say("คัดลอกพรอมต์แล้ว เปิด Google Flow และโฟลเดอร์รูปภาพสินค้าเรียบร้อย", "good")
+        messagebox.showinfo(
+            "ส่งไปยัง Google Flow",
+            "เปิด Google Flow เรียบร้อยแล้ว!\n\n"
+            "1. พรอมต์ถูกคัดลอกไปยังคลิปบอร์ดแล้ว (กด Ctrl+V เพื่อวางใน Flow)\n"
+            "2. โฟลเดอร์รูปภาพสินค้าถูกเปิดขึ้นมาแล้ว (สามารถลากรูปสินค้าไปวางใน Flow ได้ทันที)\n"
+            "3. เมื่อ Flow สร้างวิดีโอเสร็จแล้ว ให้ดาวน์โหลดไฟล์ .mp4 แล้วกลับมากด 'เลือกไฟล์วิดีโอจาก Flow' ในหน้านี้"
+        )
+
+    def _copy_fb_caption(self):
+        caption = self.txt_fb_caption.get("1.0", "end").strip()
+        if not caption:
+            messagebox.showinfo("แคปชั่น", "กรุณาเลือกสินค้าเพื่อเตรียมแคปชั่นก่อน")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(caption)
+        self.say("คัดลอกแคปชั่นสำหรับ Facebook Profile พร้อม @ผู้ติดตาม เรียบร้อยแล้ว", "good")
+
+    def _choose_fb_video(self):
+        filetypes = [("MP4 Video", "*.mp4"), ("All Files", "*.*")]
+        init_dir = Path.home() / "Downloads"
+        f = filedialog.askopenfilename(title="เลือกไฟล์วิดีโอที่สร้างจาก Flow",
+                                       initialdir=str(init_dir) if init_dir.is_dir() else str(ROOT),
+                                       filetypes=filetypes)
+        if f:
+            self._set_fb_video(Path(f))
+
+    def _find_latest_fb_video(self):
+        from . import facebook_profile_flow as fb_flow
+        vids = fb_flow.find_recent_videos(5)
+        if not vids:
+            messagebox.showinfo("ตรวจหาวิดีโอ", "ไม่พบไฟล์วิดีโอ .mp4 ล่าสุดในโฟลเดอร์ Downloads หรือ output")
+            return
+
+        latest = vids[0]
+        if messagebox.askyesno("พบวิดีโอล่าสุด",
+                               f"พบวิดีโอ: {latest['filename']} ({latest['size_str']})\n"
+                               f"ดาวน์โหลดเมื่อ: {latest['time_str']}\n\n"
+                               "ต้องการใช้วิดีโอนี้เพื่อโพสต์ Facebook Profile หรือไม่?"):
+            self._set_fb_video(latest["path"])
+
+    def _set_fb_video(self, path):
+        self.fb_video_path = Path(path)
+        if self.fb_video_path.is_file():
+            size_mb = self.fb_video_path.stat().st_size / (1024 * 1024)
+            self.lbl_fb_video_status.configure(
+                text=f"📹 ไฟล์: {self.fb_video_path.name}  |  ขนาด: {size_mb:.1f} MB  |  พร้อมโพสต์",
+                foreground=GOOD
+            )
+            self.btn_fb_play_vid.configure(state="normal")
+            self.say(f"เลือกวิดีโอ: {self.fb_video_path.name}", "good")
+        else:
+            self.lbl_fb_video_status.configure(text="ไฟล์ไม่ถูกต้องหรือไม่พบไฟล์", foreground=BAD)
+            self.btn_fb_play_vid.configure(state="disabled")
+
+    def _play_fb_video(self):
+        if self.fb_video_path and self.fb_video_path.is_file():
+            open_path(self.fb_video_path)
+
+    def _publish_to_fb_profile(self):
+        self._copy_fb_caption()
+        if self.fb_video_path and self.fb_video_path.is_file():
+            try:
+                subprocess.Popen(f'explorer /select,"{str(self.fb_video_path)}"')
+            except Exception:
+                open_path(self.fb_video_path.parent)
+        else:
+            messagebox.showwarning("ยังไม่ได้เลือกวิดีโอ", "แนะนำให้เลือกไฟล์วิดีโอจาก Flow ก่อน เพื่อให้ลากไปโพสต์ได้สะดวก")
+
+        # Open Facebook
+        open_path("https://www.facebook.com/")
+        self.say("เปิด Facebook และคัดลอกแคปชั่นพร้อมแท็ก @ผู้ติดตาม แล้ว!", "good")
+
+        messagebox.showinfo(
+            "โพสต์ Facebook Profile",
+            "เปิดหน้า Facebook และคัดลอกแคปชั่นเรียบร้อยแล้ว!\n\n"
+            "วิธีโพสต์:\n"
+            "1. บน Facebook ให้คลิกที่ 'คุณกำลังคิดอะไรอยู่' หรือสร้าง 'Reels'\n"
+            "2. กด Ctrl+V เพื่อวางแคปชั่น (มีแท็ก @ผู้ติดตาม และลิงก์สินค้าครบถ้วน)\n"
+            "3. ลากไฟล์วิดีโอจากโฟลเดอร์ที่เปิดขึ้นมาไปวางในโพสต์\n"
+            "4. กด 'โพสต์' (Post)\n"
+            "5. เมื่อโพสต์เสร็จแล้ว ให้กลับมากดปุ่ม '✅ บันทึกว่าโพสต์สำเร็จแล้ว' ที่หน้านี้"
+        )
+
+    def _mark_fb_posted(self):
+        if not self.fb_selected_prod:
+            messagebox.showinfo("บันทึกการโพสต์", "เลือกสินค้าก่อนบันทึก")
+            return
+        from . import facebook_profile_flow as fb_flow
+        url = simpledialog.askstring("ลิงก์โพสต์ Facebook", "วาง URL โพสต์บน Facebook Profile (หรือกด OK เพื่อบันทึก)")
+        if url is None:
+            return
+
+        caption = self.txt_fb_caption.get("1.0", "end").strip()
+        vid = str(self.fb_video_path) if self.fb_video_path else ""
+        fb_flow.record_facebook_post(self.fb_selected_prod, vid, caption, url)
+        self.say(f"บันทึกการโพสต์สินค้า {self.fb_selected_prod['name'][:40]} บน Facebook Profile เรียบร้อยแล้ว", "good")
+        messagebox.showinfo("สำเร็จ", "บันทึกประวัติการโพสต์ลงในระบบเรียบร้อยแล้ว!")
+
+    def _open_fb_worker_login(self):
+        from . import fb_browser_worker
+        try:
+            fb_browser_worker.open_login_window(log_callback=lambda msg: self.say(msg, "info"))
+            self.lbl_fb_worker_status.configure(
+                text="สถานะ: เปิดหน้าต่าง Facebook แล้ว กรุณาเข้าสู่ระบบในเบราว์เซอร์ (ระบบจะจำบัญชีไว้ถาวร)",
+                foreground=ACCENT_D
+            )
+            messagebox.showinfo(
+                "เข้าสู่ระบบ Facebook สำหรับพนักงาน",
+                "เปิดเบราว์เซอร์สำหรับพนักงานเรียบร้อยแล้ว!\n\n"
+                "1. ในหน้าต่างที่เปิดขึ้นมา ให้เข้าสู่ระบบ Facebook ของคุณตามปกติ\n"
+                "2. เมื่อเข้าสู่ระบบสำเร็จแล้ว สามารถปล่อยหน้าต่างไว้หรือปิดได้เลย\n"
+                "3. ระบบจะจำบัญชีนี้ไว้ถาวร ทำให้พนักงานโพสต์คลิปได้อัตโนมัติทันทีโดยไม่ต้องล็อกอินซ้ำ"
+            )
+        except Exception as e:
+            self.say(f"เปิดเบราว์เซอร์ไม่สำเร็จ: {e}", "bad")
+            messagebox.showerror("เกิดข้อผิดพลาด", f"ไม่สามารถเปิดเบราว์เซอร์ได้:\n{e}")
+
+    def _run_fb_browser_worker(self):
+        if not self.fb_selected_prod:
+            messagebox.showinfo("พนักงานอัตโนมัติ", "กรุณาเลือกสินค้า Shopee ในตารางด้านซ้ายก่อน")
+            return
+        if not self.fb_video_path or not self.fb_video_path.is_file():
+            messagebox.showwarning("พนักงานอัตโนมัติ", "ยังไม่ได้เลือกไฟล์วิดีโอจาก Flow (.mp4)\nกรุณากดเลือกไฟล์วิดีโอด้านบนก่อน")
+            return
+
+        caption = self.txt_fb_caption.get("1.0", "end").strip()
+        if not caption:
+            self._update_fb_caption()
+            caption = self.txt_fb_caption.get("1.0", "end").strip()
+
+        video_path = self.fb_video_path
+        prod = self.fb_selected_prod
+        auto_pub = self.fb_worker_auto_pub.get()
+
+        self.btn_fb_worker_run.configure(state="disabled", text="⏳ พนักงานกำลังทำงาน...")
+        self.lbl_fb_worker_status.configure(text="สถานะ: กำลังเริ่มต้นพนักงานเบราว์เซอร์...", foreground=ACCENT_D)
+        self.say("พนักงานอัตโนมัติเริ่มทำงาน...", "info")
+
+        def worker_task():
+            from . import fb_browser_worker
+            from . import facebook_profile_flow as fb_flow
+
+            def update_log(msg):
+                self.after(0, lambda m=msg: self._on_fb_worker_log(m))
+
+            try:
+                ok = fb_browser_worker.publish_facebook_reel(
+                    video_path=video_path,
+                    caption=caption,
+                    auto_publish=auto_pub,
+                    log_callback=update_log,
+                )
+                if ok:
+                    fb_flow.record_facebook_post(prod, str(video_path), caption, "https://www.facebook.com/")
+                    self.after(0, lambda: self._on_fb_worker_success(auto_pub))
+                else:
+                    self.after(0, lambda: self._on_fb_worker_success(False))
+            except PermissionError as pe:
+                self.after(0, lambda: self._on_fb_worker_error(str(pe), need_login=True))
+            except Exception as ex:
+                self.after(0, lambda: self._on_fb_worker_error(str(ex), need_login=False))
+
+        threading.Thread(target=worker_task, daemon=True).start()
+
+    def _on_fb_worker_log(self, msg):
+        self.say(msg)
+        self.lbl_fb_worker_status.configure(text=f"สถานะ: {msg}", foreground=ACCENT_D)
+
+    def _on_fb_worker_success(self, auto_pub):
+        self.btn_fb_worker_run.configure(state="normal", text="🚀 สั่งพนักงานโพสต์ Facebook ทันที (Auto-Post)")
+        if auto_pub:
+            msg = "🎉 พนักงานโพสต์คลิปลง Facebook Profile เรียบร้อยแล้ว!"
+            self.lbl_fb_worker_status.configure(text=msg, foreground=GOOD)
+            self.say(msg, "good")
+            messagebox.showinfo("โพสต์สำเร็จ", "พนักงานได้อัปโหลดคลิป วางแคปชั่น และเผยแพร่ลง Facebook Profile เรียบร้อยแล้ว!")
+        else:
+            msg = "✨ พนักงานอัปโหลดและใส่แคปชั่นเรียบร้อยแล้ว! หน้าต่างเปิดค้างไว้ให้คุณตรวจทานก่อนกดเผยแพร่"
+            self.lbl_fb_worker_status.configure(text=msg, foreground=ACCENT_D)
+            self.say(msg, "good")
+
+    def _on_fb_worker_error(self, err_msg, need_login=False):
+        self.btn_fb_worker_run.configure(state="normal", text="🚀 สั่งพนักงานโพสต์ Facebook ทันที (Auto-Post)")
+        self.lbl_fb_worker_status.configure(text=f"เกิดข้อผิดพลาด: {err_msg}", foreground=BAD)
+        self.say(f"พนักงานทำงานผิดพลาด: {err_msg}", "bad")
+        if need_login:
+            if messagebox.askyesno("ต้องเข้าสู่ระบบ Facebook",
+                                   f"{err_msg}\n\nต้องการเปิดหน้าต่างเข้าสู่ระบบ Facebook ตอนนี้หรือไม่?"):
+                self._open_fb_worker_login()
+        else:
+            messagebox.showerror("พนักงานทำงานไม่สำเร็จ", f"เกิดข้อผิดพลาดในการทำงาน:\n{err_msg}")
 
 
 def main():

@@ -6,4 +6,6 @@ cache/
 logs/*.log
 output/
 secrets/
+client_secret*.json
+scratch/
 .gemini/

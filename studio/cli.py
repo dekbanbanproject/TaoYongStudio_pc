@@ -281,6 +281,15 @@ def cmd_publish(a, cfg):
     return 2
 
 
+def cmd_worker_run(a, cfg):
+    from . import ai_worker_scheduler
+    _log("ai worker run triggered")
+    platforms = [a.platform] if getattr(a, "platform", None) and a.platform != "all" else None
+    res = ai_worker_scheduler.execute_worker_job(platforms=platforms, log=_log)
+    _log("ai worker run completed: %s" % res.get("results", {}))
+    return 0
+
+
 def cmd_import_video(a, cfg):
     from .platform_workspace import import_video
     import_video(a.file, a.platform, a.title, a.description, a.tags, a.format,
@@ -385,6 +394,8 @@ def main(argv=None):
     p.add_argument("--count", type=int, default=20)
     p.add_argument("--min-price", type=float, default=50.0)
     p.add_argument("--min-score", type=float, default=0)
+    p = sub.add_parser("worker-run")
+    p.add_argument("--platform", choices=["all", "facebook_profile", "facebook_page", "tiktok", "youtube", "batch_render"], default="all")
     sub.add_parser("voices")
     sub.add_parser("samples")
     a = ap.parse_args(argv)
@@ -394,5 +405,5 @@ def main(argv=None):
           "publish": cmd_publish, "compile": cmd_compile,
           "import-video": cmd_import_video, "google-video": cmd_google_video,
           "caption-video": cmd_caption_video, "plan-generate": cmd_plan_generate,
-          "product-ideas": cmd_product_ideas}[a.cmd]
+          "product-ideas": cmd_product_ideas, "worker-run": cmd_worker_run}[a.cmd]
     return fn(a, cfg)
