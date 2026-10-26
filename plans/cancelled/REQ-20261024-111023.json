@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261024-111023",
+  "created": "2026-10-24T11:10:23",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i12",
+      "genre": "มารยาทและนิสัยดี",
+      "title": "เก็บของเล่นให้เรียบร้อย",
+      "summary": "เล่นเสร็จแล้วช่วยกันเก็บลูกบอลใส่ที่",
+      "characters": [
+        "cat",
+        "chick"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "both",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "claude",
+  "delivery": "chat_handoff"
+}

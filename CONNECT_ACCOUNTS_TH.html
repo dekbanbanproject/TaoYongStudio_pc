@@ -1,0 +1,103 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คู่มือเชื่อมบัญชี TaoYongStudio</title><style>
+:root{--bg:#F6F3FF;--card:#fff;--ink:#2B1D4A;--muted:#6E6487;--accent:#7B5CFF;--line:#E4DEF5}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "Leelawadee UI","Noto Sans Thai",Tahoma,sans-serif}
+main{max-width:860px;margin:24px auto;padding:28px 32px;background:var(--card);border-radius:16px;box-shadow:0 2px 12px rgba(43,29,74,.08)}
+h1{color:var(--accent);margin-top:0}h2{border-top:1px solid var(--line);padding-top:20px;margin-top:32px}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid var(--line);padding:8px 10px;text-align:left}th{background:#EEE9FF}
+code{background:#EEE9FF;padding:2px 6px;border-radius:6px}a{color:#5B3FE0;word-break:break-all}li{margin:4px 0}hr{border:0}
+</style></head><body><main><h1>คู่มือเชื่อมบัญชีโพสต์ (ทำครั้งเดียว)</h1>
+<p>ทุกแพลตฟอร์มใช้ช่องทางทางการ (API) ของแพลตฟอร์มเอง รหัสและ token เก็บไว้ในโฟลเดอร์ <code>secrets</code>
+บนเครื่องคุณเท่านั้น <strong>ห้ามส่งโฟลเดอร์ <code>secrets</code> หรือรหัสเหล่านี้ให้ใคร รวมถึงในแชตกับ Claude</strong></p>
+<table>
+<thead>
+<tr>
+<th>แพลตฟอร์ม</th>
+<th>โพสต์ได้แบบไหน</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>YouTube</td>
+<td>อัตโนมัติเต็มรูปแบบ</td>
+</tr>
+<tr>
+<td>Facebook Page</td>
+<td>อัตโนมัติเต็มรูปแบบ (เป็น Reels)</td>
+</tr>
+<tr>
+<td>TikTok</td>
+<td>ส่งเข้า "แบบร่าง" ในแอป แล้วคุณกดโพสต์เอง (กฎของ TikTok)</td>
+</tr>
+<tr>
+<td>Facebook ส่วนตัว</td>
+<td>โพสต์เองเท่านั้น (Facebook ปิดช่องทางนี้แล้ว)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>1. YouTube (ประมาณ 15 นาที)</h2>
+<ol>
+<li>เข้า <a href="https://console.cloud.google.com">https://console.cloud.google.com</a> ล็อกอินด้วยบัญชี Google ที่เป็นเจ้าของช่อง</li>
+<li>มุมบนซ้ายกดเลือกโปรเจกต์ → <strong>New Project</strong> ตั้งชื่อ <code>TaoYongStudio</code> → Create</li>
+<li>ช่องค้นหาด้านบนพิมพ์ <strong>YouTube Data API v3</strong> → กด <strong>Enable</strong></li>
+<li>เมนูซ้าย <strong>Google Auth Platform</strong> (หรือ APIs &amp; Services → OAuth consent screen) → Get started</li>
+<li>App name: <code>TaoYongStudio</code> • User support email: อีเมลคุณ • Audience: <strong>External</strong> • ใส่อีเมลติดต่อ → Create</li>
+<li>ไปที่ <strong>Audience</strong> → <strong>Test users</strong> → Add users → ใส่อีเมล Google ของคุณเอง</li>
+<li>เมนู <strong>Clients</strong> → <strong>Create client</strong> → Application type: <strong>Desktop app</strong> → Create</li>
+<li>กด <strong>Download JSON</strong> จะได้ไฟล์ <code>client_secret_....json</code></li>
+<li>ใน TaoYongStudio แท็บ <strong>โพสต์</strong> → YouTube → กด <strong>1. เลือกไฟล์ client_secret.json</strong> → เลือกไฟล์ที่ดาวน์โหลด</li>
+<li>กด <strong>2. เชื่อมบัญชี YouTube</strong> → เบราว์เซอร์จะเปิด → เลือกบัญชี → ถ้าขึ้น "Google hasn't verified this app"
+   ให้กด <strong>Continue</strong> (เพราะเป็นแอปของคุณเอง) → อนุญาตทุกข้อ → ขึ้น "เชื่อม YouTube สำเร็จ"</li>
+<li>ติ๊ก <strong>ใช้งาน</strong> แล้วกด <strong>บันทึกการตั้งค่าโพสต์</strong></li>
+</ol>
+<p>หมายเหตุ
+- ตอนแอปอยู่ในสถานะ Testing Google จะให้ล็อกอินใหม่ทุก ~7 วัน ถ้าไม่อยากล็อกอินบ่อย ไปที่ Audience → <strong>Publish app</strong>
+- YouTube ให้อัปโหลดผ่าน API ได้จำกัดต่อวัน วันละ 2-3 คลิปไม่มีปัญหา
+- ระบบตั้ง "สร้างมาเพื่อเด็ก" และ "มีเนื้อหาสังเคราะห์ (AI)" ให้ทุกคลิปอัตโนมัติ</p>
+<h2>2. Facebook Page (ประมาณ 15 นาที)</h2>
+<p>ต้องเป็นผู้ดูแลเพจ (Admin หรือมีสิทธิ์สร้างโพสต์)</p>
+<ol>
+<li>เข้า <a href="https://developers.facebook.com">https://developers.facebook.com</a> → <strong>My Apps</strong> → <strong>Create App</strong></li>
+<li>Use case: เลือก <strong>Manage everything on your Page</strong> (หรือ Other → Business) → ตั้งชื่อ <code>TaoYongStudio</code> → Create</li>
+<li>ในหน้าแอป ไปที่ <strong>App settings → Basic</strong> คัดลอก <strong>App ID</strong> และ <strong>App Secret</strong> (กด Show)</li>
+<li>เปิด <strong>Graph API Explorer</strong> (ปุ่มในโปรแกรม หรือ <a href="https://developers.facebook.com/tools/explorer/)">https://developers.facebook.com/tools/explorer/)</a></li>
+<li>ช่อง Meta App: เลือก <code>TaoYongStudio</code></li>
+<li>ช่อง User or Page: <strong>User Token</strong></li>
+<li>Permissions: เพิ่ม <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code></li>
+<li>กด <strong>Generate Access Token</strong> → อนุญาต → เลือกเพจที่จะให้โพสต์ → คัดลอก token ยาวๆ ที่ได้</li>
+<li>ใน TaoYongStudio แท็บ <strong>โพสต์</strong> → Facebook Page → ใส่ App ID, App Secret, User token</li>
+<li>กด <strong>ดึงรายชื่อเพจ</strong> → เลือกเพจ → กด <strong>ใช้เพจนี้</strong> (ได้ token ของเพจแบบไม่หมดอายุ)</li>
+<li>ติ๊ก <strong>ใช้งาน</strong> แล้วกด <strong>บันทึกการตั้งค่าโพสต์</strong></li>
+</ol>
+<p>หมายเหตุ: แอปอยู่ในโหมด Development ก็โพสต์ลงเพจที่คุณเป็นผู้ดูแลได้ ไม่ต้องส่งตรวจ
+คลิปต้องยาว 3-90 วินาที (คลิปของ TaoYongStudio อยู่ในช่วงนี้)</p>
+<h2>3. TikTok (ส่งเข้าแบบร่าง)</h2>
+<ol>
+<li>เข้า <a href="https://developers.tiktok.com">https://developers.tiktok.com</a> → ล็อกอิน → <strong>Manage apps</strong> → <strong>Connect an app</strong></li>
+<li>ใส่ชื่อแอป ไอคอน หมวด แล้วในส่วน Platform เลือก <strong>Desktop</strong></li>
+<li><strong>Add products</strong>: เพิ่ม <strong>Login Kit</strong> และ <strong>Content Posting API</strong></li>
+<li>ใน Login Kit ตั้ง Redirect URI เป็น <code><a href="http://127.0.0.1:3455/callback/">http://127.0.0.1:3455/callback/</a></code>
+   (ในโปรแกรมมีปุ่ม <strong>คัดลอก Redirect URI</strong>)</li>
+<li>Scopes ที่ต้องใช้: <code>user.info.basic</code>, <code>video.upload</code></li>
+<li>ส่งแอปให้ TikTok ตรวจ (Submit for review) ระหว่างรออาจใช้ได้เฉพาะบัญชีที่เพิ่มเป็น Sandbox/Target user</li>
+<li>คัดลอก <strong>Client key</strong> และ <strong>Client secret</strong> ใส่ในแท็บ <strong>โพสต์</strong> → TikTok → กด <strong>เชื่อมบัญชี TikTok</strong></li>
+<li>ติ๊ก <strong>ใช้งาน</strong> แล้วกด <strong>บันทึกการตั้งค่าโพสต์</strong></li>
+</ol>
+<p>ทุกครั้งที่ระบบส่งคลิป: เปิดแอป TikTok → <strong>กล่องข้อความ (Inbox)</strong> → กดแจ้งเตือน → วางข้อความโพสต์
+(กดปุ่ม "คัดลอกชื่อเรื่อง + คำอธิบาย + แฮชแท็ก" ในหน้าคลิปก่อน) → ตั้งค่า "เนื้อหาที่สร้างด้วย AI" → โพสต์</p>
+<h2>4. Facebook ส่วนตัว</h2>
+<p>Facebook ไม่เปิดให้โปรแกรมโพสต์ลงโปรไฟล์ส่วนตัวตั้งแต่ปี 2018 และการใช้บอทคลิกแทนผิดกฎของ Meta
+อาจทำให้บัญชีถูกระงับ ทางที่แนะนำ:
+- ให้ระบบโพสต์ลงเพจ แล้วกด <strong>แชร์</strong> จากโพสต์ของเพจไปที่โปรไฟล์ หรือ
+- หน้า <strong>คลิป</strong> → ปุ่ม <strong>Facebook ส่วนตัว</strong> → โปรแกรมคัดลอกข้อความและเปิด Facebook กับโฟลเดอร์คลิปให้ คุณลากไฟล์แล้วโพสต์เอง</p>
+<hr />
+<h2>เลือกโหมดการโพสต์ (แท็บ "โพสต์")</h2>
+<ul>
+<li><strong>ไม่ออโต้</strong>: ไม่มีอะไรโพสต์เอง กดปุ่ม YouTube / FB Page / TikTok ในหน้า "คลิป" ทีละคลิป</li>
+<li><strong>ออโต้ เฉพาะคลิปที่อนุมัติ (แนะนำ)</strong>: ดูคลิปแล้วกด "อนุมัติ" ระบบจะโพสต์ให้ตามเวลาโพสต์</li>
+<li><strong>ออโต้ทั้งหมด</strong>: ทุกคลิปที่ไม่มีคำเตือนจะถูกโพสต์ตามเวลา โดยไม่ต้องกดอนุมัติ</li>
+</ul>
+<p>ทุกโหมด: ไม่โพสต์คลิปซ้ำ, ข้ามคลิปที่มีคำเตือน, ข้ามคลิปที่กด "ไม่ใช้", ไม่เกินจำนวนต่อวันที่ตั้งไว้</p>
+<p>คำแนะนำ: ช่องใหม่ควรเริ่มที่วันละ 2 คลิปต่อแพลตฟอร์ม และใช้โหมด "เฉพาะคลิปที่อนุมัติ"
+เพราะ YouTube และแพลตฟอร์มอื่นตรวจจับช่องที่โพสต์คลิปคล้ายๆ กันจำนวนมาก และอาจปิดการสร้างรายได้</p></main></body></html>

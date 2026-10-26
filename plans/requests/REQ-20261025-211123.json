@@ -1,0 +1,19 @@
+{
+  "id": "REQ-20261025-211123",
+  "created": "2026-10-25T21:11:23",
+  "status": "pending",
+  "items": [
+    {
+      "id": "p001-presenter",
+      "genre": "สินค้า · พรีเซนเตอร์ถือสินค้า",
+      "title": "6 เฉดใหม่ ลอรีอัล ปารีส อินฟอลลิเบิล แลค — ยิ้มสบตาแล้วชูสินค้าใกล้กล้อง"
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "horizontal",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "gemini_api"
+}

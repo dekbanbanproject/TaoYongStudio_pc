@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261025-202101",
+  "created": "2026-10-25T20:21:01",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i24",
+      "genre": "เกมทายปัญหา",
+      "title": "ทายสิ! สีอะไรเอ่ย จากคำใบ้",
+      "summary": "คำใบ้เช่น สีของแครอท ให้เด็กทาย",
+      "characters": [
+        "chick",
+        "bunny"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "vertical",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "claude",
+  "delivery": "chat_handoff"
+}
