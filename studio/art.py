@@ -105,6 +105,8 @@ SPECIES = {
     "bear": dict(name="โกโก้", body="#B98057", belly="#EED3AE", inner="#EED3AE", accent="#7A4B2C"),
     "chick": dict(name="เจี๊ยบ", body="#FFD93D", belly="#FFF1A8", inner="#FFB627", accent="#FF9F1C"),
     "cat": dict(name="มิวมิว", body="#FFB86B", belly="#FFE7C7", inner="#FF9AA8", accent="#E07B39"),
+    "khao_hom": dict(name="น้องข้าวหอม", body="#FFE8DC", belly="#FAD2E1", inner="#FFAFCB", accent="#FF7FA5"),
+    "ton_kla": dict(name="น้องต้นกล้า", body="#FFE4D6", belly="#D8F3DC", inner="#C0E0FF", accent="#75A5FF"),
 }
 CHAR_W, CHAR_H = 500, 720
 SHOULDER_Y = 548

@@ -233,6 +233,17 @@ def detect_hardware():
     if not primary_gpus and gpus_reg:
         primary_gpus = gpus_reg
 
+    def gpu_priority(g):
+        name = g.get("name", "").lower()
+        if "nvidia" in name or "geforce" in name or "rtx" in name or "gtx" in name:
+            return 0
+        if "amd" in name or "radeon" in name:
+            return 1
+        if "intel" in name or "arc" in name:
+            return 2
+        return 3
+    primary_gpus.sort(key=gpu_priority)
+
     has_nvidia = False
     for g in primary_gpus:
         gname = g["name"]
@@ -309,6 +320,9 @@ def detect_hardware():
     })
 
     # Animation Engines availability
+    ai_i2v_ready = comfyui["installed"] and (torch_info.get("cuda_available") or torch_info.get("installed"))
+    ai_t2v_ready = comfyui["installed"]
+
     engines = {
         "2d_cartoon": {
             "name": "2D Cartoon Animation",
@@ -322,23 +336,29 @@ def detect_hardware():
             "supported": True,
             "description": "แอนิเมชันเพิ่มมิติความลึก เลื่อนฉากหลังและตัวละครแบบ Parallax กล้อง Pan/Zoom",
         },
+        "3d_chibi_pastel": {
+            "name": "3D Chibi Pastel Animation — การ์ตูน 3D น่ารัก",
+            "status": "พร้อมใช้งาน" if blender["installed"] else "ต้องติดตั้งส่วนประกอบ",
+            "supported": blender["installed"],
+            "description": "สร้างการ์ตูน 3D หัวโต ตากลมโต สีพาสเทล มีการเคลื่อนไหวของตัวละคร ฉาก และกล้อง พร้อมเสียงพากย์ภาษาไทย",
+        },
         "3d_blender": {
             "name": "3D Animation — Blender",
             "status": blender["status"],
             "supported": blender["installed"],
-            "description": "เรนเดอร์โมเดล 3D ผ่าน Blender (ต้องติดตั้ง Blender ในเครื่อง)",
+            "description": "เรนเดอร์โมเดล 3D ผ่าน Blender (ติดตั้ง Blender 4.2 LTS สำเร็จ)",
         },
         "ai_image_to_video": {
             "name": "AI Image-to-Video",
-            "status": "ยังไม่ได้ติดตั้งเครื่องมือ (ต้องใช้ ComfyUI และ CUDA GPU)",
-            "supported": False,
-            "description": "สร้างคลิปจากภาพด้วยโมเดล AI (ต้องการ NVIDIA CUDA และ ComfyUI)",
+            "status": "พร้อมใช้งาน (ComfyUI + CUDA)" if ai_i2v_ready else ("พร้อมใช้งาน (ComfyUI)" if comfyui["installed"] else "ยังไม่ได้ติดตั้งเครื่องมือ"),
+            "supported": comfyui["installed"],
+            "description": "สร้างคลิปจากภาพด้วยโมเดล AI ในเครื่อง (รองรับ ComfyUI + NVIDIA CUDA)",
         },
         "ai_text_to_video": {
             "name": "AI Text-to-Video (Experimental)",
-            "status": "ยังไม่ได้ติดตั้งเครื่องมือ",
-            "supported": False,
-            "description": "สร้างคลิปจากข้อความโดยตรง (ต้องใช้ VRAM สูงและโมเดลพิเศษ)",
+            "status": "พร้อมใช้งาน (ComfyUI Engine)" if ai_t2v_ready else "ยังไม่ได้ติดตั้งเครื่องมือ",
+            "supported": comfyui["installed"],
+            "description": "สร้างคลิปจากข้อความโดยตรงผ่าน ComfyUI AI Engine",
         },
     }
 

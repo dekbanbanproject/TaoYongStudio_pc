@@ -150,11 +150,22 @@ class Episode:
 
     # -------------------------------------------------------------- voices
     def _voice(self, who, text):
-        vc = dict(self.cfg["voices"].get(who) or self.cfg["voices"]["narrator"])
+        v_who = who
+        if who not in self.cfg["voices"]:
+            if who == "khao_hom":
+                v_who = "chick"
+            elif who == "ton_kla":
+                v_who = "cat"
+        vc = dict(self.cfg["voices"].get(v_who) or self.cfg["voices"]["narrator"])
         if self.cfg["tts"].get("azure_key"):
             vc["_azure_key"] = self.cfg["tts"]["azure_key"]
             vc["_azure_region"] = self.cfg["tts"].get("azure_region", "southeastasia")
         engines = list(self.cfg["tts"]["engines"])
+        if hasattr(self, "_voice_count") and hasattr(self, "_voice_total"):
+            self._voice_count += 1
+            pct = int(100 * self._voice_count / self._voice_total)
+            self.log("PROGRESS_STAGE: tts %d%% (สังเคราะห์เสียง AI: %s - %d/%d)" % (
+                pct, who, self._voice_count, self._voice_total))
         x, eng = tts.synth_with_fallback(text, vc, engines, self.root / "cache" / "tts", self.log,
                                          allow_test=bool(self.cfg.get("allow_test_voice", False)))
         self.engines_used.add(eng)
@@ -169,6 +180,14 @@ class Episode:
         self.sfx = []  # (start, name)
         self.scenes = []
         t = 0.0
+
+        # Calculate voice count for progress reporting
+        total_voice_lines = (1 if cfg.get("read_title", True) else 0) + sum(
+            len([b for b in sc.get("beats", []) if b.get("say", b.get("text", "")).strip()])
+            for sc in s.get("scenes", [])
+        )
+        self._voice_count = 0
+        self._voice_total = max(1, total_voice_lines)
 
         # intro
         first_bg = BG_ALIASES.get(s["scenes"][0].get("background", "meadow"), s["scenes"][0].get("background", "meadow"))
@@ -296,6 +315,7 @@ class Episode:
 
     # -------------------------------------------------------------- audio mix
     def mix_audio(self, path):
+        self.log("PROGRESS_STAGE: audio 20% (กำลังรวมแทร็กเสียงและเอฟเฟกต์)")
         n = int(math.ceil(self.duration * audio.SR)) + audio.SR // 10
         voice = np.zeros(n, dtype=np.float32)
         for st, x in self.voice_clips:
@@ -317,6 +337,7 @@ class Episode:
         if peak > 0.97:
             mixd *= 0.97 / peak
         audio.write_wav(path, mixd)
+        self.log("PROGRESS_STAGE: audio 100% (รวมเสียงเสร็จสิ้น)")
 
     def _music(self, n):
         src = self.cfg["audio"].get("music", "auto")
@@ -476,9 +497,12 @@ class Episode:
         L = self.L
         sc = next((s for s in self.scenes if s.start <= t < s.end), self.scenes[-1])
         frame = self._bg(sc.bg).copy()
-        is_parallax = getattr(self, "engine_type", "2d_cartoon") == "25d_parallax"
+        eng = getattr(self, "engine_type", "2d_cartoon")
+        is_parallax = eng in ("25d_parallax", "3d_blender", "ai_image_to_video", "ai_text_to_video")
+        is_3d = (eng == "3d_blender")
+        p_mult = 2.0 if is_3d else (1.5 if "ai_" in eng else 1.0)
         scale = L.get("scale", 1.0)
-        p_offset = int(12 * math.sin(t * 0.5) * scale) if is_parallax else 0
+        p_offset = int(12 * p_mult * math.sin(t * 0.5) * scale) if is_parallax else 0
 
         if sc.bg in art.OUTDOOR:
             cw = self.cloud.width
@@ -575,7 +599,7 @@ class Episode:
             frame = Image.blend(white, frame, k / 0.3)
         return frame
 
-    def render(self, fmt, out_mp4, audio_wav, log_every=5.0):
+    def render(self, fmt, out_mp4, audio_wav, log_every=0.35):
         self._prepare_format(fmt)
         L = self.L
         v = self.cfg["video"]
@@ -634,13 +658,21 @@ class Episode:
         frames = int(math.ceil(self.duration * self.fps))
         t0 = time.time()
         last = t0
+        self.log("  %s 0%%" % fmt)
+        self.log("PROGRESS: stage=render fmt=%s pct=0 frame=0 total_frames=%d fps=0.0 eta=0s" % (fmt, frames))
         try:
             for f in range(frames):
                 img = self._draw_frame(f / self.fps)
                 proc.stdin.write(img.tobytes())
-                if time.time() - last > log_every:
-                    last = time.time()
-                    self.log("  %s %d%%" % (fmt, 100 * f // frames))
+                now = time.time()
+                if (now - last >= log_every) or (f == frames - 1):
+                    last = now
+                    pct = int(100 * (f + 1) / frames)
+                    fps_now = (f + 1) / max(0.01, now - t0)
+                    eta = int((frames - (f + 1)) / max(0.1, fps_now))
+                    self.log("  %s %d%%" % (fmt, pct))
+                    self.log("PROGRESS: stage=render fmt=%s pct=%d frame=%d total_frames=%d fps=%.1f eta=%ds" % (
+                        fmt, pct, f + 1, frames, fps_now, eta))
         finally:
             proc.stdin.close()
             rc = proc.wait()
@@ -652,9 +684,20 @@ class Episode:
             cmd = _get_ffmpeg_cmd(active_encoder)
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, **audio._no_window())
             try:
+                last_fb = time.time()
+                t0_fb = time.time()
                 for f in range(frames):
                     img = self._draw_frame(f / self.fps)
                     proc.stdin.write(img.tobytes())
+                    now = time.time()
+                    if (now - last_fb >= log_every) or (f == frames - 1):
+                        last_fb = now
+                        pct = int(100 * (f + 1) / frames)
+                        fps_now = (f + 1) / max(0.01, now - t0_fb)
+                        eta = int((frames - (f + 1)) / max(0.1, fps_now))
+                        self.log("  %s %d%%" % (fmt, pct))
+                        self.log("PROGRESS: stage=render fmt=%s pct=%d frame=%d total_frames=%d fps=%.1f eta=%ds" % (
+                            fmt, pct, f + 1, frames, fps_now, eta))
             finally:
                 proc.stdin.close()
                 rc = proc.wait()
@@ -684,49 +727,84 @@ class Episode:
 
 
 def produce(script, cfg, out_dir, formats=None, log=print,
-            resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon", device_id=None):
+            resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon", device_id=None,
+            chibi_options=None):
     """Full pipeline for one script. Returns a result dict for the batch report."""
     t0 = time.time()
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     slug = script["id"]
+    formats = formats or cfg["video"]["formats"]
+    log("CREATED: %s" % out_dir)
+    log("PLAN: formats=%s total_formats=%d" % (",".join(formats), len(formats)))
     ep = Episode(script, cfg, log, resolution=resolution, fps=fps, encoder=encoder, engine_type=engine_type).build()
     wav = out_dir / "_mix.wav"
     ep.mix_audio(wav)
-    formats = formats or cfg["video"]["formats"]
     files = {}
     verifications = {}
     encoders_used = {}
 
-    for fmt in formats:
+    for fmt_idx, fmt in enumerate(formats):
+        log("FORMAT_START: fmt=%s idx=%d total=%d" % (fmt, fmt_idx + 1, len(formats)))
         mp4 = out_dir / ("%s_%s.mp4" % (slug, fmt))
-        secs = ep.render(fmt, mp4, wav)
-        files[fmt] = mp4.name
-        enc_name = getattr(ep, "last_encoder_used", "libx264")
-        encoders_used[fmt] = enc_name
-        log("  %s done in %.1fs (%s)" % (fmt, secs, enc_name))
-
-        # Real verification using ffprobe/ffmpeg probe
-        try:
-            from . import hardware
-            probe_res = hardware.probe_video(mp4)
-            verifications[fmt] = probe_res
-            if probe_res.get("ok"):
-                log("  verified: %s, %.1fs, %s, %.2fMB" % (
-                    probe_res["resolution"], probe_res["duration_seconds"],
-                    probe_res["video_codec"], probe_res["size_mb"]))
+        if engine_type == "3d_chibi_pastel":
+            from . import chibi_3d
+            c_opts = dict(chibi_options or {})
+            c_opts["duration"] = ep.duration
+            c_opts["fps"] = ep.fps
+            c_opts["aspect"] = "9:16" if fmt == "vertical" else ("1:1" if fmt == "square" else "16:9")
+            c_opts["resolution"] = resolution
+            c_opts["encoder"] = encoder
+            c_opts["audio_wav"] = str(wav)
+            c_opts["title"] = script.get("title", slug)
+            res = chibi_3d.render_chibi_animation(
+                script_data=script,
+                output_dir=out_dir,
+                options=c_opts,
+                logger=log,
+                target_mp4=mp4,
+            )
+            files[fmt] = mp4.name
+            enc_name = res.get("encoder", encoder)
+            encoders_used[fmt] = enc_name
+            verifications[fmt] = res.get("probe", {})
+            thumb_name = "thumb_%s.jpg" % fmt
+            thumb_path = out_dir / thumb_name
+            if thumb_path.exists():
+                files["thumb_" + fmt] = thumb_name
             else:
-                log("  verification warning: %s" % probe_res.get("error"))
-        except Exception as e:
-            verifications[fmt] = {"ok": False, "error": str(e)}
+                im = ep.still(fmt, min(ep.scenes[0].end - 0.3, 1.6))
+                im.save(thumb_path, quality=90)
+                files["thumb_" + fmt] = thumb_name
+        else:
+            secs = ep.render(fmt, mp4, wav)
+            files[fmt] = mp4.name
+            enc_name = getattr(ep, "last_encoder_used", "libx264")
+            encoders_used[fmt] = enc_name
+            log("  %s done in %.1fs (%s)" % (fmt, secs, enc_name))
+            log("PROGRESS_STAGE: verify 0%% (กำลังตรวจสอบความสมบูรณ์ของไฟล์วิดีโอ %s)" % fmt)
 
-        thumb_t = min(ep.scenes[0].end - 0.3, 1.6)
-        im = ep.still(fmt, thumb_t)
-        if fmt == "horizontal" and im.width > 1280:
-            im = im.resize((1280, 720), Image.LANCZOS)
-        name = "thumb_%s.jpg" % fmt
-        im.save(out_dir / name, quality=90)
-        files["thumb_" + fmt] = name
+            # Real verification using ffprobe/ffmpeg probe
+            try:
+                from . import hardware
+                probe_res = hardware.probe_video(mp4)
+                verifications[fmt] = probe_res
+                if probe_res.get("ok"):
+                    log("  verified: %s, %.1fs, %s, %.2fMB" % (
+                        probe_res["resolution"], probe_res["duration_seconds"],
+                        probe_res["video_codec"], probe_res["size_mb"]))
+                else:
+                    log("  verification warning: %s" % probe_res.get("error"))
+            except Exception as e:
+                verifications[fmt] = {"ok": False, "error": str(e)}
+
+            thumb_t = min(ep.scenes[0].end - 0.3, 1.6)
+            im = ep.still(fmt, thumb_t)
+            if fmt == "horizontal" and im.width > 1280:
+                im = im.resize((1280, 720), Image.LANCZOS)
+            name = "thumb_%s.jpg" % fmt
+            im.save(out_dir / name, quality=90)
+            files["thumb_" + fmt] = name
     wav.unlink(missing_ok=True)
     (out_dir / "subtitles.srt").write_text(ep.srt(), encoding="utf-8")
     files["subtitles"] = "subtitles.srt"
@@ -770,5 +848,5 @@ def produce(script, cfg, out_dir, formats=None, log=print,
         "device_id": device_id or getattr(ep, "encoder", "auto"),
     }
     (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    return meta
+    log("DONE_CLIP: folder=%s title=%s" % (out_dir, script.get("title", "")))
     return meta

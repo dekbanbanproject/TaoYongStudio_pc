@@ -85,7 +85,7 @@ def cmd_validate(a, cfg):
     return 0 if not err else 2
 
 
-def _render_one(path, cfg, out_root, formats, resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon", device_id=None):
+def _render_one(path, cfg, out_root, formats, resolution="1080p", fps=None, encoder="auto", engine_type="2d_cartoon", device_id=None, chibi_options=None):
     from .episode import produce
     sc = scriptmod.load(path)
     err, warn = scriptmod.validate(sc)
@@ -100,7 +100,8 @@ def _render_one(path, cfg, out_root, formats, resolution="1080p", fps=None, enco
         formats = wanted or formats
     meta = produce(sc, cfg, out, formats, log=_log,
                    resolution=resolution, fps=fps, encoder=encoder,
-                   engine_type=engine_type, device_id=device_id)
+                   engine_type=engine_type, device_id=device_id,
+                   chibi_options=chibi_options)
     meta["script_warnings"] = warn
     meta["folder"] = str(out)
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -115,8 +116,16 @@ def cmd_render(a, cfg):
     enc = getattr(a, "encoder", "auto")
     eng = getattr(a, "engine", "2d_cartoon")
     dev = getattr(a, "device", None)
+
+    c_opts = {}
+    if getattr(a, "chibi_char", None): c_opts["character"] = a.chibi_char
+    if getattr(a, "chibi_scene", None): c_opts["environment"] = a.chibi_scene
+    if getattr(a, "chibi_action", None): c_opts["action"] = a.chibi_action
+    if getattr(a, "chibi_preset", None): c_opts["preset"] = a.chibi_preset
+
     meta = _render_one(a.file, cfg, out, _formats(a.format, cfg),
-                       resolution=res, fps=fps, encoder=enc, engine_type=eng, device_id=dev)
+                       resolution=res, fps=fps, encoder=enc, engine_type=eng, device_id=dev,
+                       chibi_options=c_opts)
     _log("done: %s (%.1fs video, rendered in %.0fs)" % (meta["folder"], meta["duration_seconds"], meta["render_seconds"]))
     print(json.dumps(meta, ensure_ascii=False, indent=2))
     return 0
@@ -342,7 +351,11 @@ def main(argv=None):
     p.add_argument("--resolution", choices=["480p", "720p", "1080p", "4k"], default="1080p")
     p.add_argument("--fps", type=int, choices=[12, 24, 30], default=None)
     p.add_argument("--encoder", choices=["auto", "h264_nvenc", "h264_qsv", "h264_mf", "libx264"], default="auto")
-    p.add_argument("--engine", choices=["2d_cartoon", "25d_parallax", "3d_blender", "ai_image_to_video", "ai_text_to_video"], default="2d_cartoon")
+    p.add_argument("--engine", choices=["2d_cartoon", "25d_parallax", "3d_chibi_pastel", "3d_blender", "ai_image_to_video", "ai_text_to_video"], default="2d_cartoon")
+    p.add_argument("--chibi-char", default=None, help="Chibi character preset (khao_hom, ton_kla, bunny, bear)")
+    p.add_argument("--chibi-scene", default=None, help="Chibi scene preset (garden_house, fairy_forest, school_classroom, fantasy_town)")
+    p.add_argument("--chibi-action", default=None, help="Chibi action preset (wave, walk, jump, talk, idle)")
+    p.add_argument("--chibi-preset", default=None, help="Chibi pastel color palette (sweet_candy, lavender_dream, warm_sunshine)")
     p.add_argument("--device", default=None)
     p.add_argument("--out")
     p = sub.add_parser("batch")
