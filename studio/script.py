@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .art import BACKGROUNDS, COLORS, ITEM_KINDS, SPECIES
 
-ACTIONS = ["talk", "wave", "jump", "cheer", "point", "happy", "dance", "none"]
+ACTIONS = ["talk", "wave", "jump", "cheer", "point", "happy", "dance", "none", "swimming", "walk", "run"]
 BG_ALIASES = {"park": "meadow", "ทุ่งหญ้า": "meadow", "ทะเล": "beach", "ชายหาด": "beach", "กลางคืน": "night",
               "room": "bedroom", "ห้องนอน": "bedroom", "school": "classroom", "ห้องเรียน": "classroom"}
 

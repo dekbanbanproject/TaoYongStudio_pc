@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261026-120135",
+  "created": "2026-10-26T12:01:35",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i02",
+      "genre": "นับเลข",
+      "title": "กองไหนเยอะกว่า? มากกว่า น้อยกว่า",
+      "summary": "เทียบลูกบอลสองกอง ให้เด็กชี้กองที่มากกว่า",
+      "characters": [
+        "chick",
+        "bear"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "both",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "chat_handoff"
+}

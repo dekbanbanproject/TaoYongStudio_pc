@@ -62,14 +62,13 @@ def _edge(text, vc, out_mp3):
         c = edge_tts.Communicate(text, vc.get("edge", "th-TH-PremwadeeNeural"),
                                  rate=vc.get("rate", "+0%"), pitch=vc.get("pitch", "+0Hz"),
                                  volume=vc.get("volume", "+0%"))
-        await c.save(str(out_mp3))
+        await asyncio.wait_for(c.save(str(out_mp3)), timeout=12.0)
 
     try:
         asyncio.run(go())
     except Exception as e:
-        if "No audio" in str(e):
-            raise TTSError("edge returned no audio for voice %s (only th-TH-PremwadeeNeural and "
-                           "th-TH-NiwatNeural exist in the free Edge service)" % vc.get("edge")) from e
+        if "No audio" in str(e) or isinstance(e, asyncio.TimeoutError):
+            raise TTSError("edge returned no audio for voice %s (timeout or service busy)" % vc.get("edge")) from e
         raise
 
 
@@ -220,6 +219,23 @@ def spoken(text):
 
 NETWORK = {"azure", "edge"}
 TEST_ONLY = {"espeak", "silent"}
+_HAS_NET = None
+
+
+def has_internet():
+    global _HAS_NET
+    if _HAS_NET is not None:
+        return _HAS_NET
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1.0)
+        s.connect(("8.8.8.8", 53))
+        s.close()
+        _HAS_NET = True
+    except Exception:
+        _HAS_NET = False
+    return _HAS_NET
 
 
 def synth_with_fallback(text, voice_cfg, engines, cache_dir, log, allow_test=False):
@@ -227,9 +243,12 @@ def synth_with_fallback(text, voice_cfg, engines, cache_dir, log, allow_test=Fal
     say = spoken(text)
     last = None
     usable = []
+    net_available = has_internet()
     for eng in engines:
         if eng == "azure" and not (os.environ.get("AZURE_SPEECH_KEY") or voice_cfg.get("_azure_key")):
             continue  # not configured, skip quietly
+        if eng in NETWORK and not net_available:
+            continue  # offline or sandboxed, don't stall
         if eng in TEST_ONLY and not allow_test:
             continue
         usable.append(eng)
@@ -237,7 +256,7 @@ def synth_with_fallback(text, voice_cfg, engines, cache_dir, log, allow_test=Fal
         raise TTSError("no usable voice engine (check config tts.engines)")
     for i, eng in enumerate(usable):
         # the free Edge service sometimes answers "No audio was received" for a while; wait it out
-        waits = [2, 5, 10, 20, 30] if eng in NETWORK else []
+        waits = [1, 2, 3] if eng in NETWORK else []
         for k in range(len(waits) + 1):
             try:
                 return synth(say, voice_cfg, eng, cache_dir), eng
@@ -247,4 +266,12 @@ def synth_with_fallback(text, voice_cfg, engines, cache_dir, log, allow_test=Fal
                     log("voice engine '%s' failed (%s), retry %d in %ds" % (eng, str(e)[:100], k + 1, waits[k]))
                     time.sleep(waits[k])
         log("voice engine '%s' failed (%s)%s" % (eng, str(last)[:160], ", trying next" if i + 1 < len(usable) else ""))
+    # If all primary engines failed, try test engine if available
+    for eng in engines:
+        if eng in TEST_ONLY and eng not in usable:
+            try:
+                log("falling back to test voice engine '%s'" % eng)
+                return synth(say, voice_cfg, eng, cache_dir), eng
+            except TTSError:
+                pass
     raise TTSError("all voice engines failed for line '%s': %s" % (text[:40], last))

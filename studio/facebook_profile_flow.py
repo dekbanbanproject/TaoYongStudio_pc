@@ -266,8 +266,8 @@ def download_image_cache(image_url, product_id):
 
 
 def generate_flow_prompt(product, duration_sec=8, style_key="presenter"):
-    """Generate high-converting Flow video prompt for 8/10/12/15 seconds."""
-    if duration_sec not in (8, 10, 12, 15):
+    """Generate high-converting Flow video prompt for 8/10/12/15/20/25/30 seconds."""
+    if duration_sec not in (8, 10, 12, 15, 20, 25, 30):
         duration_sec = 8
 
     style = STYLES.get(style_key, STYLES["presenter"])
@@ -276,10 +276,20 @@ def generate_flow_prompt(product, duration_sec=8, style_key="presenter"):
 
     prod_desc = f'"{short_title}" (Shopee product)'
     scene_text = style["scene"].format(presenter=PRESENTER, product=prod_desc)
-    beats_text = style.get(f"beats_{duration_sec}", style["beats_8"])
+    
+    # Map duration to available beats
+    beats_key = f"beats_{duration_sec}"
+    if beats_key in style:
+        beats_text = style[beats_key]
+    elif duration_sec in (20, 25, 30):
+        beats_text = style.get("beats_15", style["beats_8"]) + f" → ย้ำความคุ้มค่าและชวนกดลิงก์ (16-{duration_sec}s)"
+    else:
+        beats_text = style.get("beats_15", style["beats_8"])
 
     # Spoken Thai line
-    speech_tpl = SPEECH_LINES.get(duration_sec, SPEECH_LINES[8]).get(style_key, SPEECH_LINES[8]["presenter"])
+    speech_lookup_sec = duration_sec if duration_sec in SPEECH_LINES else (15 if duration_sec >= 15 else 8)
+    speech_group = SPEECH_LINES.get(speech_lookup_sec, SPEECH_LINES[8])
+    speech_tpl = speech_group.get(style_key, speech_group.get("presenter", "ของดีบอกต่อ {short_name}"))
     spoken_line = speech_tpl.format(short_name=spoken_name)
 
     is_cartoon = style_key == "cartoon"
@@ -290,16 +300,15 @@ def generate_flow_prompt(product, duration_sec=8, style_key="presenter"):
         if is_cartoon else RULES_EN
     )
 
-    prompt = (
-        f"Vertical 9:16 video, exactly {duration_sec} seconds duration, {visual_look} for Shopee social affiliate.\n"
-        f"Scene: {scene_text}.\n"
-        f"Hook & Timeline ({duration_sec}s): {beats_text}.\n"
-        f"Action & Energy: Bright, uplifting commercial atmosphere. Camera: {style['camera']}.\n"
-        f"Audio: Presenter speaks Thai with natural fluid lip-sync: \"{spoken_line}\"; clean ambient acoustic music.\n"
-        f"Compliance: {rules_text}"
-    )
-    return prompt.strip()
-
+    prompt_lines = [
+        f"Vertical 9:16 video, exactly {duration_sec} seconds duration, {visual_look} for Shopee social affiliate.",
+        f"Scene: {scene_text}.",
+        f"Hook & Timeline ({duration_sec}s): {beats_text}.",
+        f"Action & Energy: Bright, uplifting commercial atmosphere. Camera: {style['camera']}.",
+        f'Audio: Presenter speaks Thai with natural fluid lip-sync: "{spoken_line}"; clean ambient acoustic music.',
+        f"Compliance: {rules_text}",
+    ]
+    return chr(10).join(prompt_lines).strip()
 
 def generate_facebook_caption(product, style="reels"):
     """Prepare engaging Facebook Profile post caption with hook, @ผู้ติดตาม, and hashtags."""

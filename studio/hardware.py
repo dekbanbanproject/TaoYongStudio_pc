@@ -342,6 +342,18 @@ def detect_hardware():
             "supported": blender["installed"],
             "description": "สร้างการ์ตูน 3D หัวโต ตากลมโต สีพาสเทล มีการเคลื่อนไหวของตัวละคร ฉาก และกล้อง พร้อมเสียงพากย์ภาษาไทย",
         },
+        "3d_cinematic_cartoon": {
+            "name": "3D Cinematic Cartoon Animation — สัตว์ 3D ภาพยนตร์",
+            "status": "พร้อมใช้งาน" if blender["installed"] else "ต้องติดตั้งส่วนประกอบ",
+            "supported": blender["installed"],
+            "description": "สร้างการ์ตูนสัตว์ 3D คุณภาพระดับภาพยนตร์ (ปลาว่ายน้ำ ลูกแมว ลูกเจี๊ยบ กระต่าย) แสง Cinematic ใต้ทะเล ชายหาด ป่าธรรมชาติ",
+        },
+        "cute_toy_ad": {
+            "name": "Cute Toy Product Ad Animation — โฆษณาสินค้า 3D ของเล่น",
+            "status": "พร้อมใช้งาน" if blender["installed"] else "ต้องติดตั้งส่วนประกอบ",
+            "supported": blender["installed"],
+            "description": "สร้างวิดีโอโฆษณาสินค้า 3D สไตล์ Vinyl Toy บนโต๊ะทำงาน แสง Studio DoF พร้อมแท่นหมุนโชว์สินค้าจริง ป้ายราคา และโปรโมชั่น",
+        },
         "3d_blender": {
             "name": "3D Animation — Blender",
             "status": blender["status"],

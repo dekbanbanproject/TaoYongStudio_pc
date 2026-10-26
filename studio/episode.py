@@ -167,7 +167,7 @@ class Episode:
             self.log("PROGRESS_STAGE: tts %d%% (สังเคราะห์เสียง AI: %s - %d/%d)" % (
                 pct, who, self._voice_count, self._voice_total))
         x, eng = tts.synth_with_fallback(text, vc, engines, self.root / "cache" / "tts", self.log,
-                                         allow_test=bool(self.cfg.get("allow_test_voice", False)))
+                                         allow_test=bool(self.cfg.get("allow_test_voice", True)))
         self.engines_used.add(eng)
         return x * float(self.cfg["audio"].get("voice_volume", 1.0))
 
@@ -758,6 +758,64 @@ def produce(script, cfg, out_dir, formats=None, log=print,
             c_opts["audio_wav"] = str(wav)
             c_opts["title"] = script.get("title", slug)
             res = chibi_3d.render_chibi_animation(
+                script_data=script,
+                output_dir=out_dir,
+                options=c_opts,
+                logger=log,
+                target_mp4=mp4,
+            )
+            files[fmt] = mp4.name
+            enc_name = res.get("encoder", encoder)
+            encoders_used[fmt] = enc_name
+            verifications[fmt] = res.get("probe", {})
+            thumb_name = "thumb_%s.jpg" % fmt
+            thumb_path = out_dir / thumb_name
+            if thumb_path.exists():
+                files["thumb_" + fmt] = thumb_name
+            else:
+                im = ep.still(fmt, min(ep.scenes[0].end - 0.3, 1.6))
+                im.save(thumb_path, quality=90)
+                files["thumb_" + fmt] = thumb_name
+        elif engine_type == "3d_cinematic_cartoon":
+            from . import cinematic_3d
+            c_opts = dict(chibi_options or {})
+            c_opts["duration"] = ep.duration
+            c_opts["fps"] = ep.fps
+            c_opts["aspect"] = "9:16" if fmt == "vertical" else ("1:1" if fmt == "square" else "16:9")
+            c_opts["resolution"] = resolution
+            c_opts["encoder"] = encoder
+            c_opts["audio_wav"] = str(wav)
+            c_opts["title"] = script.get("title", slug)
+            res = cinematic_3d.render_cinematic_animation(
+                script_data=script,
+                output_dir=out_dir,
+                options=c_opts,
+                logger=log,
+                target_mp4=mp4,
+            )
+            files[fmt] = mp4.name
+            enc_name = res.get("encoder", encoder)
+            encoders_used[fmt] = enc_name
+            verifications[fmt] = res.get("probe", {})
+            thumb_name = "thumb_%s.jpg" % fmt
+            thumb_path = out_dir / thumb_name
+            if thumb_path.exists():
+                files["thumb_" + fmt] = thumb_name
+            else:
+                im = ep.still(fmt, min(ep.scenes[0].end - 0.3, 1.6))
+                im.save(thumb_path, quality=90)
+                files["thumb_" + fmt] = thumb_name
+        elif engine_type == "cute_toy_ad":
+            from . import toy_ad_3d
+            c_opts = dict(chibi_options or {})
+            c_opts["duration"] = ep.duration
+            c_opts["fps"] = ep.fps
+            c_opts["aspect"] = "9:16" if fmt == "vertical" else ("1:1" if fmt == "square" else "16:9")
+            c_opts["resolution"] = resolution
+            c_opts["encoder"] = encoder
+            c_opts["audio_wav"] = str(wav)
+            c_opts["title"] = script.get("title", slug)
+            res = toy_ad_3d.render_toy_ad_animation(
                 script_data=script,
                 output_dir=out_dir,
                 options=c_opts,

@@ -122,6 +122,10 @@ def cmd_render(a, cfg):
     if getattr(a, "chibi_scene", None): c_opts["environment"] = a.chibi_scene
     if getattr(a, "chibi_action", None): c_opts["action"] = a.chibi_action
     if getattr(a, "chibi_preset", None): c_opts["preset"] = a.chibi_preset
+    if getattr(a, "toy_product_img", None): c_opts["product_image"] = a.toy_product_img
+    if getattr(a, "toy_price", None): c_opts["price_text"] = a.toy_price
+    if getattr(a, "toy_promo", None): c_opts["promo_text"] = a.toy_promo
+    if getattr(a, "toy_cta", None): c_opts["cta_text"] = a.toy_cta
 
     meta = _render_one(a.file, cfg, out, _formats(a.format, cfg),
                        resolution=res, fps=fps, encoder=enc, engine_type=eng, device_id=dev,
@@ -351,11 +355,15 @@ def main(argv=None):
     p.add_argument("--resolution", choices=["480p", "720p", "1080p", "4k"], default="1080p")
     p.add_argument("--fps", type=int, choices=[12, 24, 30], default=None)
     p.add_argument("--encoder", choices=["auto", "h264_nvenc", "h264_qsv", "h264_mf", "libx264"], default="auto")
-    p.add_argument("--engine", choices=["2d_cartoon", "25d_parallax", "3d_chibi_pastel", "3d_blender", "ai_image_to_video", "ai_text_to_video"], default="2d_cartoon")
-    p.add_argument("--chibi-char", default=None, help="Chibi character preset (khao_hom, ton_kla, bunny, bear)")
-    p.add_argument("--chibi-scene", default=None, help="Chibi scene preset (garden_house, fairy_forest, school_classroom, fantasy_town)")
-    p.add_argument("--chibi-action", default=None, help="Chibi action preset (wave, walk, jump, talk, idle)")
-    p.add_argument("--chibi-preset", default=None, help="Chibi pastel color palette (sweet_candy, lavender_dream, warm_sunshine)")
+    p.add_argument("--engine", choices=["2d_cartoon", "25d_parallax", "3d_chibi_pastel", "3d_cinematic_cartoon", "cute_toy_ad", "3d_blender", "ai_image_to_video", "ai_text_to_video"], default="2d_cartoon")
+    p.add_argument("--chibi-char", default=None, help="Chibi character preset (khao_hom, ton_kla, bunny, bear, tropical_fish, vinyl_bear)")
+    p.add_argument("--chibi-scene", default=None, help="Scene preset (garden_house, fairy_forest, underwater, beach, cozy_desk)")
+    p.add_argument("--chibi-action", default=None, help="Action preset (wave, walk, jump, talk, swimming, idle)")
+    p.add_argument("--chibi-preset", default=None, help="Color palette preset (sweet_candy, lavender_dream, warm_sunshine)")
+    p.add_argument("--toy-product-img", default=None, help="Product image path for Toy Ad")
+    p.add_argument("--toy-price", default="฿99", help="Price text for Toy Ad")
+    p.add_argument("--toy-promo", default="ลด 50% ส่งฟรี", help="Promo text for Toy Ad")
+    p.add_argument("--toy-cta", default="🛒 สั่งซื้อที่ตะกร้าเหลือง", help="CTA text for Toy Ad")
     p.add_argument("--device", default=None)
     p.add_argument("--out")
     p = sub.add_parser("batch")

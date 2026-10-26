@@ -2,6 +2,7 @@
 
 Start with:  TaoYongStudio.bat   (or: .venv\\Scripts\\pythonw -m studio.gui)
 """
+import ctypes
 import datetime as dt
 import json
 import os
@@ -10,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, font as tkfont, messagebox, simpledialog, ttk
@@ -51,6 +53,21 @@ def pick_font():
     if IS_WIN:
         return "Leelawadee UI"
     return "Loma"
+
+
+def _get_real_ffplay():
+    """Resolve direct ffplay.exe binary, bypassing scoop console shims if present."""
+    p = shutil.which("ffplay")
+    if p and "scoop\\shims" in p.lower():
+        try:
+            apps_dir = Path(p).parent.parent / "apps" / "ffmpeg"
+            if apps_dir.exists():
+                candidates = sorted(list(apps_dir.glob("*/bin/ffplay.exe")), reverse=True)
+                if candidates:
+                    return str(candidates[0])
+        except Exception:
+            pass
+    return p
 
 
 def open_path(p):
@@ -653,7 +670,12 @@ class StudioApp(tk.Tk):
         self.after(150, self._poll)
         self._last_worker_minute = None
         self.after(5000, self._worker_heartbeat)
+        self.protocol("WM_DELETE_WINDOW", self._on_app_close)
         self.refresh_all()
+
+    def _on_app_close(self):
+        self._stop_clip_player()
+        self.destroy()
 
     # ------------------------------------------------------------------ look
     def _set_icon(self):
@@ -1141,6 +1163,12 @@ class StudioApp(tk.Tk):
     def _on_tab_changed(self, event=None):
         if hasattr(self, "web_tab_bar"):
             self.web_tab_bar.sync_selection()
+        if hasattr(self, "tab_clips") and hasattr(self, "nb"):
+            try:
+                if self.nb.select() != str(self.tab_clips):
+                    self._stop_clip_player()
+            except Exception:
+                pass
         self.refresh_all()
 
     def _toggle_log(self):
@@ -1793,6 +1821,128 @@ class StudioApp(tk.Tk):
                                                     "warm_sunshine — Warm Sunshine (พีช+มิ้นต์อบอุ่น)"])
         self.chibi_preset_cb.pack(fill="x")
 
+        # 3D Cinematic Cartoon Sub-Panel
+        self.f_cinematic_sec = tk.Frame(self.f_type_sec, bg="#F0F8FF", highlightbackground="#B8DCF8", highlightthickness=1, padx=8, pady=6)
+        lbl_cine_head = tk.Label(self.f_cinematic_sec, text="🎬 พรีเซ็ต 3D Cinematic (สัตว์ 3D แสงภาพยนตร์สมจริง)", font=(self.F, 9, "bold"), fg="#1A4A7A", bg="#F0F8FF")
+        lbl_cine_head.pack(anchor="w", pady=(0, 4))
+
+        row_cine1 = tk.Frame(self.f_cinematic_sec, bg="#F0F8FF")
+        row_cine1.pack(fill="x", pady=2)
+        row_cine1.columnconfigure(0, weight=1, uniform="cine_col")
+        row_cine1.columnconfigure(1, weight=1, uniform="cine_col")
+
+        box_cine_char = tk.Frame(row_cine1, bg="#F0F8FF")
+        box_cine_char.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        tk.Label(box_cine_char, text="สัตว์ 3D:", font=(self.F, 8), fg="#486581", bg="#F0F8FF").pack(anchor="w")
+        self.cinematic_char_val = tk.StringVar(value="tropical_fish — ปลาน้อยนีโม่ (Tropical Clownfish)")
+        self.cinematic_char_cb = ttk.Combobox(box_cine_char, textvariable=self.cinematic_char_val, state="readonly",
+                                             values=["tropical_fish — ปลาน้อยนีโม่ (Tropical Clownfish)",
+                                                     "kitten — ลูกแมวน้อยส้ม (Golden Furry Kitten)",
+                                                     "chick — ลูกเจี๊ยบปุกปุย (Fluffy Yellow Chick)",
+                                                     "bunny — กระต่ายหิมะ (Cute Fluffy Bunny)"])
+        self.cinematic_char_cb.pack(fill="x")
+
+        box_cine_scene = tk.Frame(row_cine1, bg="#F0F8FF")
+        box_cine_scene.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        tk.Label(box_cine_scene, text="ฉากภาพยนตร์:", font=(self.F, 8), fg="#486581", bg="#F0F8FF").pack(anchor="w")
+        self.cinematic_scene_val = tk.StringVar(value="underwater — โลกใต้ทะเลสีคราม (Coral Reef)")
+        self.cinematic_scene_cb = ttk.Combobox(box_cine_scene, textvariable=self.cinematic_scene_val, state="readonly",
+                                              values=["underwater — โลกใต้ทะเลสีคราม (Coral Reef)",
+                                                      "beach — ชายหาดทรอปิคอล (Sunny Beach)",
+                                                      "sunlit_forest — ป่าธรรมชาติแสงทอง (Sunlit Forest)"])
+        self.cinematic_scene_cb.pack(fill="x")
+
+        row_cine2 = tk.Frame(self.f_cinematic_sec, bg="#F0F8FF")
+        row_cine2.pack(fill="x", pady=(4, 2))
+        row_cine2.columnconfigure(0, weight=1, uniform="cine_col")
+        row_cine2.columnconfigure(1, weight=1, uniform="cine_col")
+
+        box_cine_act = tk.Frame(row_cine2, bg="#F0F8FF")
+        box_cine_act.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        tk.Label(box_cine_act, text="การเคลื่อนไหว (Motion):", font=(self.F, 8), fg="#486581", bg="#F0F8FF").pack(anchor="w")
+        self.cinematic_action_val = tk.StringVar(value="swimming — ว่ายน้ำพริ้วไหวธรรมชาติ")
+        self.cinematic_action_cb = ttk.Combobox(box_cine_act, textvariable=self.cinematic_action_val, state="readonly",
+                                               values=["swimming — ว่ายน้ำพริ้วไหวธรรมชาติ",
+                                                       "walking — เดินเล่นชมวิว",
+                                                       "running — วิ่งเล่นร่าเริง",
+                                                       "jumping — กระโดดดีใจ"])
+        self.cinematic_action_cb.pack(fill="x")
+
+        box_cine_cam = tk.Frame(row_cine2, bg="#F0F8FF")
+        box_cine_cam.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        tk.Label(box_cine_cam, text="แสง & มุมกล้อง:", font=(self.F, 8), fg="#486581", bg="#F0F8FF").pack(anchor="w")
+        self.cinematic_cam_val = tk.StringVar(value="cinematic_orbit — กล้องหมุนภาพยนตร์ (Orbit Pan)")
+        self.cinematic_cam_cb = ttk.Combobox(box_cine_cam, textvariable=self.cinematic_cam_val, state="readonly",
+                                             values=["cinematic_orbit — กล้องหมุนภาพยนตร์ (Orbit Pan)",
+                                                     "dolly_tracking — กล้องดอลลี่ติดตาม (Dolly Track)"])
+        self.cinematic_cam_cb.pack(fill="x")
+
+        # Cute Toy Product Ad Sub-Panel
+        self.f_toy_ad_sec = tk.Frame(self.f_type_sec, bg="#FFF8F2", highlightbackground="#F8D8B8", highlightthickness=1, padx=8, pady=6)
+        lbl_toy_head = tk.Label(self.f_toy_ad_sec, text="🧸 พรีเซ็ต 3D Toy Product Ad (ฟิกเกอร์โฆษณาสินค้า DoF)", font=(self.F, 9, "bold"), fg="#8A3E00", bg="#FFF8F2")
+        lbl_toy_head.pack(anchor="w", pady=(0, 4))
+
+        row_toy1 = tk.Frame(self.f_toy_ad_sec, bg="#FFF8F2")
+        row_toy1.pack(fill="x", pady=2)
+        row_toy1.columnconfigure(0, weight=1, uniform="toy_col")
+        row_toy1.columnconfigure(1, weight=1, uniform="toy_col")
+
+        box_toy_char = tk.Frame(row_toy1, bg="#FFF8F2")
+        box_toy_char.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        tk.Label(box_toy_char, text="ฟิกเกอร์มาสคอต:", font=(self.F, 8), fg="#7A5230", bg="#FFF8F2").pack(anchor="w")
+        self.toy_char_val = tk.StringVar(value="vinyl_bear — น้องหมีไวนิลพาสเทล (Glossy Bear)")
+        self.toy_char_cb = ttk.Combobox(box_toy_char, textvariable=self.toy_char_val, state="readonly",
+                                        values=["vinyl_bear — น้องหมีไวนิลพาสเทล (Glossy Bear)",
+                                                "vinyl_bunny — น้องกระต่ายป๊อปมาร์ท (Pop Bunny)",
+                                                "vinyl_cat — น้องแมวกวักนำโชค (Lucky Cat)"])
+        self.toy_char_cb.pack(fill="x")
+
+        box_toy_scene = tk.Frame(row_toy1, bg="#FFF8F2")
+        box_toy_scene.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        tk.Label(box_toy_scene, text="ฉากสตูดิโอ:", font=(self.F, 8), fg="#7A5230", bg="#FFF8F2").pack(anchor="w")
+        self.toy_scene_val = tk.StringVar(value="cozy_desk — โต๊ะสตูดิโอแสงธรรมชาติ DoF")
+        self.toy_scene_cb = ttk.Combobox(box_toy_scene, textvariable=self.toy_scene_val, state="readonly",
+                                         values=["cozy_desk — โต๊ะสตูดิโอแสงธรรมชาติ DoF",
+                                                 "pastel_room — ห้องพาสเทลมินิมอล"])
+        self.toy_scene_cb.pack(fill="x")
+
+        # Row 2: Product Image Picker
+        row_toy2 = tk.Frame(self.f_toy_ad_sec, bg="#FFF8F2")
+        row_toy2.pack(fill="x", pady=(3, 2))
+        tk.Label(row_toy2, text="รูปสินค้าจริง (แสดงบนแท่นหมุน 3D):", font=(self.F, 8), fg="#7A5230", bg="#FFF8F2").pack(anchor="w")
+        row_toy_pick = tk.Frame(row_toy2, bg="#FFF8F2")
+        row_toy_pick.pack(fill="x")
+        self.toy_prod_img_val = tk.StringVar()
+        self.toy_prod_img_ent = ttk.Entry(row_toy_pick, textvariable=self.toy_prod_img_val)
+        self.toy_prod_img_ent.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        btn_pick_prod = ttk.Button(row_toy_pick, text="เลือกไฟล์...", command=self._browse_toy_product_image)
+        btn_pick_prod.pack(side="right")
+
+        # Row 3: Price, Promo, CTA
+        row_toy3 = tk.Frame(self.f_toy_ad_sec, bg="#FFF8F2")
+        row_toy3.pack(fill="x", pady=(3, 2))
+        row_toy3.columnconfigure(0, weight=1, uniform="toy_col3")
+        row_toy3.columnconfigure(1, weight=1, uniform="toy_col3")
+        row_toy3.columnconfigure(2, weight=1, uniform="toy_col3")
+
+        box_price = tk.Frame(row_toy3, bg="#FFF8F2")
+        box_price.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        tk.Label(box_price, text="ป้ายราคา:", font=(self.F, 8), fg="#7A5230", bg="#FFF8F2").pack(anchor="w")
+        self.toy_price_val = tk.StringVar(value="฿99")
+        ttk.Entry(box_price, textvariable=self.toy_price_val).pack(fill="x")
+
+        box_promo = tk.Frame(row_toy3, bg="#FFF8F2")
+        box_promo.grid(row=0, column=1, sticky="ew", padx=(2, 2))
+        tk.Label(box_promo, text="โปรโมชั่น:", font=(self.F, 8), fg="#7A5230", bg="#FFF8F2").pack(anchor="w")
+        self.toy_promo_val = tk.StringVar(value="ลด 50% ส่งฟรี")
+        ttk.Entry(box_promo, textvariable=self.toy_promo_val).pack(fill="x")
+
+        box_cta = tk.Frame(row_toy3, bg="#FFF8F2")
+        box_cta.grid(row=0, column=2, sticky="ew", padx=(2, 0))
+        tk.Label(box_cta, text="ปุ่มสั่งซื้อ:", font=(self.F, 8), fg="#7A5230", bg="#FFF8F2").pack(anchor="w")
+        self.toy_cta_val = tk.StringVar(value="🛒 สั่งซื้อที่ตะกร้าเหลือง")
+        ttk.Entry(box_cta, textvariable=self.toy_cta_val).pack(fill="x")
+
         # --- D. เลือกคุณภาพวิดีโอ ---
         self.f_qual_sec = ttk.Frame(panel)
         self.f_qual_sec.pack(fill="x", pady=(6, 4))
@@ -1956,18 +2106,43 @@ class StudioApp(tk.Tk):
             status_text = f"สถานะ: {dev.get('status')} | {dev.get('details', '')}"
             self.anim_device_status_lbl.configure(text=status_text)
 
+    def _browse_toy_product_image(self):
+        from tkinter import filedialog
+        f = filedialog.askopenfilename(
+            title="เลือกรูปสินค้าจริง (Product Image)",
+            filetypes=[("Image files", "*.png;*.jpg;*.jpeg;*.webp"), ("All files", "*.*")]
+        )
+        if f:
+            self.toy_prod_img_val.set(f)
+
     def _on_anim_engine_selected(self, event=None):
         label = self.anim_engine_val.get()
         item = getattr(self, "_anim_engine_map", {}).get(label)
         if item:
             k, e = item
             self.anim_engine_status_lbl.configure(text=f"{e.get('description', '')} ({e.get('status')})")
-            if k == "3d_chibi_pastel" or "Chibi" in label:
-                if hasattr(self, "f_chibi_sec"):
+
+            is_chibi = (k == "3d_chibi_pastel" or "Chibi" in label)
+            is_cinematic = (k == "3d_cinematic_cartoon" or "Cinematic" in label)
+            is_toy_ad = (k == "cute_toy_ad" or "Toy" in label or "โฆษณา" in label)
+
+            if hasattr(self, "f_chibi_sec"):
+                if is_chibi:
                     self.f_chibi_sec.pack(fill="x", pady=(4, 2))
-            else:
-                if hasattr(self, "f_chibi_sec"):
+                else:
                     self.f_chibi_sec.pack_forget()
+
+            if hasattr(self, "f_cinematic_sec"):
+                if is_cinematic:
+                    self.f_cinematic_sec.pack(fill="x", pady=(4, 2))
+                else:
+                    self.f_cinematic_sec.pack_forget()
+
+            if hasattr(self, "f_toy_ad_sec"):
+                if is_toy_ad:
+                    self.f_toy_ad_sec.pack(fill="x", pady=(4, 2))
+                else:
+                    self.f_toy_ad_sec.pack_forget()
 
     def _open_created_folder(self):
         folder = getattr(self, "_created_folder", None)
@@ -2307,11 +2482,11 @@ class StudioApp(tk.Tk):
         right.pack(side="right", fill="y")
         right.pack_propagate(False)
 
-        r_inner = tk.Frame(right, bg="#FFFFFF", padx=16, pady=14)
+        r_inner = tk.Frame(right, bg="#FFFFFF", padx=14, pady=12)
         r_inner.pack(fill="both", expand=True)
 
         topbox = tk.Frame(r_inner, bg="#FFFFFF")
-        topbox.pack(fill="both", expand=True)
+        topbox.pack(side="top", fill="x")
 
         self.c_thumb = tk.Label(topbox, bg="#FAF8FD", highlightbackground="#EDE9FE", highlightthickness=1, bd=0)
         self.c_thumb.pack(side="left", anchor="n")
@@ -2322,6 +2497,34 @@ class StudioApp(tk.Tk):
 
         btns = tk.Frame(r_inner, bg="#FFFFFF")
         btns.pack(side="bottom", fill="x")
+
+        # กรอบเล่นวิดีโอตัวอย่าง แบ่งครึ่งส่วนล่างต่อจากรูป พร้อมปุ่มขยายวิดีโอ
+        self.c_player_box = tk.Frame(r_inner, bg="#0F0C1E", highlightbackground="#8E6CF7", highlightthickness=1, bd=0)
+
+        self.c_player_hdr = tk.Frame(self.c_player_box, bg="#1E1738")
+        self.c_player_hdr.pack(side="top", fill="x")
+
+        self.c_player_title = tk.Label(self.c_player_hdr, text="🎬 กำลังเล่นวิดีโอตัวอย่าง", font=(self.F, 8, "bold"), fg="#EDE8FF", bg="#1E1738")
+        self.c_player_title.pack(side="left", padx=8, pady=4)
+
+        self.c_player_btn_close = tk.Button(self.c_player_hdr, text="✕ ปิด", font=(self.F, 8, "bold"), bg="#2E204E", fg="#FFA8A8",
+                                            activebackground="#452F75", activeforeground="#FFD8D8", relief="flat", bd=0, padx=6, pady=2,
+                                            cursor="hand2", command=self._stop_clip_player)
+        self.c_player_btn_close.pack(side="right", padx=(2, 6), pady=3)
+
+        self.c_player_btn_expand = tk.Button(self.c_player_hdr, text="⛶ ขยายวิดีโอ", font=(self.F, 8, "bold"), bg="#8E6CF7", fg="#FFFFFF",
+                                             activebackground="#7C5CEF", relief="flat", bd=0, padx=8, pady=2,
+                                             cursor="hand2", command=self.expand_video)
+        self.c_player_btn_expand.pack(side="right", padx=2, pady=3)
+
+        self.c_player_btn_replay = tk.Button(self.c_player_hdr, text="🔄 เล่นใหม่", font=(self.F, 8), bg="#2E204E", fg="#D5C4FF",
+                                             activebackground="#452F75", activeforeground="#FFFFFF", relief="flat", bd=0, padx=6, pady=2,
+                                             cursor="hand2", command=self._replay_current_video)
+        self.c_player_btn_replay.pack(side="right", padx=2, pady=3)
+
+        self.c_video_canvas = tk.Frame(self.c_player_box, bg="#000000")
+        self.c_video_canvas.pack(fill="both", expand=True)
+        self.c_video_canvas.bind("<Configure>", self._on_video_canvas_resize)
 
         # Play buttons
         r1 = tk.Frame(btns, bg="#FFFFFF")
@@ -2974,6 +3177,7 @@ class StudioApp(tk.Tk):
         return [Path(i) for i in self.tv_c.selection()]
 
     def show_clip(self):
+        self._stop_clip_player()
         folder, meta = self._sel_clip()
         if not folder:
             self._update_clip_buttons(None)
@@ -3004,15 +3208,140 @@ class StudioApp(tk.Tk):
                                           v.get("url") or v.get("error", "")[:80])
         self.c_info.configure(text=txt)
 
+    def _on_video_canvas_resize(self, event):
+        if hasattr(self, "_player_hwnd") and self._player_hwnd:
+            try:
+                ctypes.windll.user32.MoveWindow(self._player_hwnd, 0, 0, max(50, event.width), max(50, event.height), True)
+            except Exception:
+                pass
+
+    def _stop_clip_player(self):
+        if hasattr(self, "_player_proc") and self._player_proc:
+            try:
+                self._player_proc.kill()
+            except Exception:
+                pass
+            self._player_proc = None
+        self._player_hwnd = None
+        if hasattr(self, "c_player_box") and self.c_player_box.winfo_ismapped():
+            self.c_player_box.pack_forget()
+
+    def _replay_current_video(self):
+        fmt = getattr(self, "_current_playing_fmt", "vertical")
+        self.play_clip(fmt)
+
+    def expand_video(self):
+        target = getattr(self, "_current_playing_file", None)
+        if not target or not Path(target).exists():
+            folder, meta = self._sel_clip()
+            if folder and meta:
+                fmt = getattr(self, "_current_playing_fmt", "vertical")
+                name = meta.get("files", {}).get(fmt) or meta.get("files", {}).get("vertical") or meta.get("files", {}).get("horizontal")
+                if name and (folder / name).exists():
+                    target = folder / name
+        if target and Path(target).exists():
+            open_path(target)
+            self.say("เปิดวิดีโอแบบเต็มจอในโปรแกรมเล่นแล้ว", "good")
+        else:
+            messagebox.showinfo("ขยายวิดีโอ", "ไม่พบไฟล์วิดีโอที่จะขยาย")
+
     def play_clip(self, fmt):
         folder, meta = self._sel_clip()
-        if not folder:
+        if not folder or not meta:
+            messagebox.showinfo("เล่นคลิป", "กรุณาเลือกคลิปที่ต้องการเล่นจากรายการทางซ้ายก่อน")
             return
         name = meta.get("files", {}).get(fmt)
         if not name or not (folder / name).exists():
+            alt_fmt = "horizontal" if fmt == "vertical" else "vertical"
+            alt_name = meta.get("files", {}).get(alt_fmt)
+            if alt_name and (folder / alt_name).exists():
+                fmt_th = "แนวตั้ง" if fmt == "vertical" else "แนวนอน"
+                alt_th = "แนวนอน" if fmt == "vertical" else "แนวตั้ง"
+                if messagebox.askyesno("เล่นคลิป", f"ไม่มีคลิปแบบ {fmt_th} สำหรับรายการนี้\nแต่มีคลิปแบบ {alt_th}\nต้องการเล่นแบบ {alt_th} แทนหรือไม่?"):
+                    self.play_clip(alt_fmt)
+                    return
             messagebox.showinfo("เล่นคลิป", "ไม่มีคลิปแบบนี้ (อาจตั้งค่าให้สร้างเฉพาะบางแบบ)")
             return
-        open_path(folder / name)
+
+        video_path = folder / name
+        self._current_playing_file = video_path
+        self._current_playing_fmt = fmt
+
+        # Stop previous playback
+        if hasattr(self, "_player_proc") and self._player_proc:
+            try:
+                self._player_proc.kill()
+            except Exception:
+                pass
+            self._player_proc = None
+        self._player_hwnd = None
+
+        fmt_title = "แนวตั้ง (TikTok 9:16)" if fmt == "vertical" else ("แนวนอน (YouTube 16:9)" if fmt == "horizontal" else "สี่เหลี่ยม (1:1)")
+        self.c_player_title.configure(text=f"🎬 กำลังเล่น: {fmt_title}")
+
+        # Pack player box into right column (between topbox and btns)
+        self.c_player_box.pack(side="top", fill="both", expand=True, pady=(6, 6))
+        self.update_idletasks()
+        self.update()
+
+        ffplay_bin = _get_real_ffplay()
+        if not ffplay_bin or not IS_WIN:
+            open_path(video_path)
+            return
+
+        wid = self.c_video_canvas.winfo_id()
+        w = max(180, self.c_video_canvas.winfo_width())
+        h = max(140, self.c_video_canvas.winfo_height())
+
+        win_title = f"TY_Player_{os.getpid()}_{int(time.time() * 1000)}"
+        cmd = [
+            ffplay_bin,
+            "-window_title", win_title,
+            "-noborder",
+            "-loop", "0",
+            "-x", str(w),
+            "-y", str(h),
+            str(video_path)
+        ]
+
+        startupinfo = None
+        creationflags = 0
+        if IS_WIN:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0  # SW_HIDE: hide console window completely
+            creationflags = 0x08000000   # CREATE_NO_WINDOW: prevent terminal/powershell window
+
+        try:
+            self._player_proc = subprocess.Popen(
+                cmd,
+                startupinfo=startupinfo,
+                creationflags=creationflags,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            open_path(video_path)
+            return
+
+        def _embed(retries=30):
+            if not hasattr(self, "_player_proc") or not self._player_proc or self._player_proc.poll() is not None:
+                return
+            hwnd = ctypes.windll.user32.FindWindowW(None, win_title)
+            if hwnd:
+                self._player_hwnd = hwnd
+                ctypes.windll.user32.SetParent(hwnd, wid)
+                GWL_STYLE = -16
+                WS_CHILD = 0x40000000
+                WS_VISIBLE = 0x10000000
+                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, WS_CHILD | WS_VISIBLE)
+                cur_w = max(50, self.c_video_canvas.winfo_width())
+                cur_h = max(50, self.c_video_canvas.winfo_height())
+                ctypes.windll.user32.MoveWindow(hwnd, 0, 0, cur_w, cur_h, True)
+            elif retries > 0:
+                self.after(35, lambda: _embed(retries - 1))
+
+        self.after(30, _embed)
 
     def copy_upload(self):
         folder, _ = self._sel_clip()
@@ -3049,6 +3378,7 @@ class StudioApp(tk.Tk):
         (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def remove_clips(self):
+        self._stop_clip_player()
         sel = self._sel_clips()
         if not sel:
             messagebox.showinfo("ลบคลิป", "เลือกคลิปทางซ้ายอย่างน้อย 1 คลิปก่อน")
@@ -5398,6 +5728,10 @@ class StudioApp(tk.Tk):
         eng_type = "2d_cartoon"
         if "Chibi" in eng_raw:
             eng_type = "3d_chibi_pastel"
+        elif "Cinematic" in eng_raw:
+            eng_type = "3d_cinematic_cartoon"
+        elif "Toy" in eng_raw or "โฆษณา" in eng_raw:
+            eng_type = "cute_toy_ad"
         elif "Parallax" in eng_raw:
             eng_type = "25d_parallax"
         elif "Blender" in eng_raw:
@@ -5455,6 +5789,26 @@ class StudioApp(tk.Tk):
                 args += ["--chibi-action", self.chibi_action_val.get().split()[0]]
             if hasattr(self, "chibi_preset_val") and self.chibi_preset_val.get():
                 args += ["--chibi-preset", self.chibi_preset_val.get().split()[0]]
+        elif eng_type == "3d_cinematic_cartoon":
+            if hasattr(self, "cinematic_char_val") and self.cinematic_char_val.get():
+                args += ["--chibi-char", self.cinematic_char_val.get().split()[0]]
+            if hasattr(self, "cinematic_scene_val") and self.cinematic_scene_val.get():
+                args += ["--chibi-scene", self.cinematic_scene_val.get().split()[0]]
+            if hasattr(self, "cinematic_action_val") and self.cinematic_action_val.get():
+                args += ["--chibi-action", self.cinematic_action_val.get().split()[0]]
+        elif eng_type == "cute_toy_ad":
+            if hasattr(self, "toy_char_val") and self.toy_char_val.get():
+                args += ["--chibi-char", self.toy_char_val.get().split()[0]]
+            if hasattr(self, "toy_scene_val") and self.toy_scene_val.get():
+                args += ["--chibi-scene", self.toy_scene_val.get().split()[0]]
+            if hasattr(self, "toy_prod_img_val") and self.toy_prod_img_val.get():
+                args += ["--toy-product-img", self.toy_prod_img_val.get()]
+            if hasattr(self, "toy_price_val") and self.toy_price_val.get():
+                args += ["--toy-price", self.toy_price_val.get()]
+            if hasattr(self, "toy_promo_val") and self.toy_promo_val.get():
+                args += ["--toy-promo", self.toy_promo_val.get()]
+            if hasattr(self, "toy_cta_val") and self.toy_cta_val.get():
+                args += ["--toy-cta", self.toy_cta_val.get()]
         if dev_info.get("id"):
             args += ["--device", dev_info["id"]]
 
