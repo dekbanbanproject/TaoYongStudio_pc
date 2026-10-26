@@ -1138,7 +1138,10 @@ class StudioApp(tk.Tk):
 
         # Bottom Collapsible Progress & Log Tray
         bottom = tk.Frame(right_area, bg="#F0ECFD", pady=2)
-        bottom.pack(side="bottom", fill="x")
+        # packed before the notebook so the tray is never pushed out of view on small windows
+        bottom.pack(side="bottom", fill="x", before=self.nb)
+        self.tray = bottom
+        self.tray_home = right_area
 
         top = tk.Frame(bottom, bg="#F0ECFD")
         top.pack(fill="x")
@@ -1158,11 +1161,38 @@ class StudioApp(tk.Tk):
                            padx=10, pady=4, wrap="word")
         self.log.tag_configure("bad", foreground="#FF9C9C")
         self.log.tag_configure("good", foreground="#9CF0B8")
+        self.log.pack(fill="x")
+        self.btn_log.configure(text="ซ่อนบันทึก")
         self.head_status = tk.Label(head, text="")
+
+    def _dock_tray(self):
+        """Show the progress/log tray in the bottom box of the clips and scripts pages, and at the window bottom elsewhere."""
+        tray = getattr(self, "tray", None)
+        if tray is None:
+            return
+        try:
+            cur = self.nb.select()
+            dock = None
+            for tab, name in ((self.tab_clips, "clip_dock"), (self.tab_scripts, "script_dock")):
+                if cur == str(tab):
+                    dock = getattr(self, name, None)
+            if dock is not None:
+                if tray.pack_info().get("in") is not dock:
+                    tray.pack_forget()
+                    tray.pack(in_=dock, side="top", fill="x", padx=6, pady=(2, 4))
+                    tray.lift()
+                    self.log.configure(height=10)
+            elif tray.pack_info().get("in") is not self.tray_home:
+                tray.pack_forget()
+                tray.pack(in_=self.tray_home, side="bottom", fill="x", before=self.nb)
+                self.log.configure(height=4)
+        except Exception:
+            pass
 
     def _on_tab_changed(self, event=None):
         if hasattr(self, "web_tab_bar"):
             self.web_tab_bar.sync_selection()
+        self._dock_tray()
         if hasattr(self, "tab_clips") and hasattr(self, "nb"):
             try:
                 if self.nb.select() != str(self.tab_clips):
@@ -1461,6 +1491,10 @@ class StudioApp(tk.Tk):
         btn_del = RoundedButton(b_right, text="🗑 ลบบทที่เลือก", bg="#FFF5F5", fg="#EF4444", border="#FFCFCF", bd=1,
                                 radius=8, padx=12, pady=5, command=self.remove_scripts)
         btn_del.pack(side="left", padx=4)
+
+        # bottom box: shows what the app is doing right now (progress bar + live log)
+        self.script_dock = tk.Frame(t, bg="#F0ECFD", highlightbackground="#D8CEF8", highlightthickness=1, bd=0)
+        self.script_dock.pack(side="bottom", fill="x", padx=4, pady=(0, 2))
 
         # Main Workspace: Left Panel (Scripts List) + Right Panel (Preview & Animation Studio)
         main = tk.Frame(t, bg="#F0ECFD")
@@ -2442,6 +2476,10 @@ class StudioApp(tk.Tk):
 
         left = tk.Frame(body, bg="#FFFFFF", highlightbackground="#EAE4F8", highlightthickness=1, bd=0)
         left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        # bottom box under the list: shows what the app is doing right now (progress bar + live log)
+        self.clip_dock = tk.Frame(left, bg="#F0ECFD", highlightbackground="#D8CEF8", highlightthickness=1, bd=0)
+        self.clip_dock.pack(side="bottom", fill="x", padx=2, pady=(0, 2))
 
         cols = ("date", "title", "dur", "status", "posts")
         self.tv_c = ttk.Treeview(left, columns=cols, show="headings", selectmode="extended")

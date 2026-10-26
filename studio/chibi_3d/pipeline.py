@@ -175,8 +175,8 @@ def render_chibi_animation(
                 vc = cfg["voices"].get("chick", cfg["voices"].get("narrator", {}))
                 tts_cache = ROOT / "cache" / "tts"
                 tts_cache.mkdir(parents=True, exist_ok=True)
-                allow_test = bool(cfg.get("allow_test_voice", True))
-                voice_samples, eng_used = tts.synth_with_fallback(speech_text, vc, engines, tts_cache, log, allow_test=True)
+                allow_test = bool(cfg.get("allow_test_voice", False))
+                voice_samples, eng_used = tts.synth_with_fallback(speech_text, vc, engines, tts_cache, log, allow_test=allow_test)
                 log(f"🎙️ เสียงพากย์สร้างสำเร็จด้วยเอนจิน: {eng_used}")
                 dur_voice = len(voice_samples) / audio.SR
                 if dur_voice > duration:

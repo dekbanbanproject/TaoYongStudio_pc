@@ -256,7 +256,7 @@ def synth_with_fallback(text, voice_cfg, engines, cache_dir, log, allow_test=Fal
         raise TTSError("no usable voice engine (check config tts.engines)")
     for i, eng in enumerate(usable):
         # the free Edge service sometimes answers "No audio was received" for a while; wait it out
-        waits = [1, 2, 3] if eng in NETWORK else []
+        waits = [1, 2, 4, 8, 15] if eng in NETWORK else []
         for k in range(len(waits) + 1):
             try:
                 return synth(say, voice_cfg, eng, cache_dir), eng
@@ -266,9 +266,10 @@ def synth_with_fallback(text, voice_cfg, engines, cache_dir, log, allow_test=Fal
                     log("voice engine '%s' failed (%s), retry %d in %ds" % (eng, str(e)[:100], k + 1, waits[k]))
                     time.sleep(waits[k])
         log("voice engine '%s' failed (%s)%s" % (eng, str(last)[:160], ", trying next" if i + 1 < len(usable) else ""))
-    # If all primary engines failed, try test engine if available
+    # Robot test voices read Thai as gibberish, so they are used only when the config allows them;
+    # otherwise the clip fails and can be re-rendered instead of silently mixing in a foreign-sounding voice.
     for eng in engines:
-        if eng in TEST_ONLY and eng not in usable:
+        if allow_test and eng in TEST_ONLY and eng not in usable:
             try:
                 log("falling back to test voice engine '%s'" % eng)
                 return synth(say, voice_cfg, eng, cache_dir), eng

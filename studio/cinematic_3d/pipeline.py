@@ -161,7 +161,7 @@ def render_cinematic_animation(
                 vc = cfg["voices"].get("narrator", {})
                 tts_cache = ROOT / "cache" / "tts"
                 tts_cache.mkdir(parents=True, exist_ok=True)
-                voice_samples, eng_used = tts.synth_with_fallback(speech_text, vc, engines, tts_cache, log, allow_test=True)
+                voice_samples, eng_used = tts.synth_with_fallback(speech_text, vc, engines, tts_cache, log, allow_test=bool(cfg.get("allow_test_voice", False)))
                 dur_voice = len(voice_samples) / audio.SR
                 if dur_voice > duration:
                     duration = dur_voice + 0.8
