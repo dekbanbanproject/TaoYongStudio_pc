@@ -9,3 +9,6 @@ secrets/
 client_secret*.json
 scratch/
 .gemini/
+
+# local settings (see config.example.json)
+config.json
