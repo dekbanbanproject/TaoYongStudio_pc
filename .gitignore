@@ -12,3 +12,6 @@ scratch/
 
 # local settings (see config.example.json)
 config.json
+
+# installer output
+TaoYongStudio_Setup.exe
