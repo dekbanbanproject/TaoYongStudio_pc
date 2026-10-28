@@ -2815,6 +2815,7 @@ class StudioApp(tk.Tk):
         row_fl = tk.Frame(panel, bg="#FFFFFF")
         row_fl.pack(anchor="w")
         tk.Button(row_fl, text="📋 คัดลอกพรอมต์ + เปิด Flow", font=(self.F, 8), bg="#F0EBFF", fg="#6C47FF", relief="flat", bd=0, padx=8, pady=4, cursor="hand2", command=lambda p=platform: self.platform_open_flow(p)).pack(side="left")
+        tk.Button(row_fl, text="✦ AI วิเคราะห์พรอมต์", font=(self.F, 8), bg="#E8F8F5", fg="#176C68", relief="flat", bd=0, padx=8, pady=4, cursor="hand2", command=lambda p=platform: self.analyze_video_prompt(self.platform_ui[p]["flow_prompt"], "flow")).pack(side="left", padx=6)
         tk.Button(row_fl, text="📂 นำเข้าคลิป...", font=(self.F, 8, "bold"), bg="#8E6CF7", fg="#FFFFFF", relief="flat", bd=0, padx=10, pady=4, cursor="hand2", command=lambda p=platform: self.platform_import(p, "google_flow")).pack(side="left", padx=6)
 
         panel = ui["panels"]["omni"]
@@ -2827,6 +2828,7 @@ class StudioApp(tk.Tk):
         ui["resolution"] = tk.StringVar(value="720p")
         ttk.Combobox(row_om, textvariable=ui["resolution"], values=("360p", "720p", "1080p", "4k"), state="readonly", width=8).pack(side="left", padx=4)
         tk.Button(row_om, text="⚡ สร้างด้วย Google", font=(self.F, 8, "bold"), bg="#8E6CF7", fg="#FFFFFF", relief="flat", bd=0, padx=8, pady=4, cursor="hand2", command=lambda p=platform: self.platform_generate_google(p)).pack(side="left", padx=6)
+        tk.Button(row_om, text="✦ AI วิเคราะห์พรอมต์", font=(self.F, 8), bg="#E8F8F5", fg="#176C68", relief="flat", bd=0, padx=8, pady=4, cursor="hand2", command=lambda p=platform: self.analyze_video_prompt(self.platform_ui[p]["omni_prompt"], "omni")).pack(side="left", padx=6)
 
         self._platform_source_changed(platform)
 
@@ -3032,6 +3034,84 @@ class StudioApp(tk.Tk):
             self.clipboard_append(prompt)
         open_path("https://flow.google.com/")
         self.say("คัดลอกพรอมต์แล้ว เปิด Flow ใช้ Agent สำหรับทั้งเรื่อง หรือเลือกพรอมต์ทีละฉาก; ดาวน์โหลดแล้วนำเข้าคลิป", "good")
+
+    def analyze_video_prompt(self, widget, context, duration=None):
+        original = widget.get("1.0", "end").strip()
+        if not original:
+            messagebox.showwarning("AI วิเคราะห์พรอมต์", "กรุณาใส่พรอมต์ก่อนวิเคราะห์")
+            return
+        from .credential_store import load_key
+        key = load_key()
+        if not key:
+            messagebox.showwarning("AI วิเคราะห์พรอมต์", "กรุณาตั้ง Gemini API key ในแท็บตั้งค่าก่อน")
+            return
+        self.say("AI กำลังวิเคราะห์พรอมต์…")
+
+        def finish(result=None, error=None):
+            if error:
+                messagebox.showerror("AI วิเคราะห์พรอมต์", str(error))
+                self.say("วิเคราะห์พรอมต์ไม่สำเร็จ", "bad")
+                return
+            if not widget.winfo_exists():
+                return
+            win = tk.Toplevel(self)
+            win.title("ผลวิเคราะห์พรอมต์")
+            win.geometry("720x600")
+            win.transient(self)
+            win.configure(bg="#FFFFFF")
+            panel = tk.Frame(win, bg="#FFFFFF", padx=18, pady=16)
+            panel.pack(fill="both", expand=True)
+            tk.Label(panel, text="✦ ผลวิเคราะห์พรอมต์", font=(self.F, 14, "bold"),
+                     fg="#2C1D63", bg="#FFFFFF").pack(anchor="w")
+            sections = [("สรุป", [result["summary"]]), ("จุดที่ดี", result["strengths"]),
+                        ("ข้อเสนอแนะ", result["issues"])]
+            for heading, lines in sections:
+                if not any(lines):
+                    continue
+                tk.Label(panel, text=heading, font=(self.F, 9, "bold"), fg="#6C47FF",
+                         bg="#FFFFFF").pack(anchor="w", pady=(10, 2))
+                tk.Label(panel, text="\n".join("• " + x for x in lines if x),
+                         font=(self.F, 9), fg="#2C1D63", bg="#FFFFFF",
+                         wraplength=660, justify="left").pack(anchor="w")
+            tk.Label(panel, text="พรอมต์ที่ปรับปรุง (แก้ไขได้ก่อนนำไปใช้)",
+                     font=(self.F, 9, "bold"), fg="#6C47FF", bg="#FFFFFF").pack(anchor="w", pady=(12, 3))
+            improved = tk.Text(panel, height=10, wrap="word", font=(self.F, 9),
+                               bg="#FAF9FF", fg="#2C1D63", relief="flat",
+                               highlightbackground="#EDE9FE", highlightthickness=1)
+            improved.pack(fill="both", expand=True)
+            improved.insert("1.0", result["improved_prompt"])
+
+            def apply_result():
+                if widget.get("1.0", "end").strip() != original:
+                    messagebox.showwarning("พรอมต์ถูกแก้ไข", "พรอมต์ต้นฉบับเปลี่ยนไประหว่างวิเคราะห์ กรุณาตรวจอีกครั้ง")
+                    return
+                replacement = improved.get("1.0", "end").strip()
+                if not replacement:
+                    messagebox.showwarning("พรอมต์ว่าง", "กรุณาใส่พรอมต์ก่อนนำไปใช้")
+                    return
+                widget.delete("1.0", "end")
+                widget.insert("1.0", replacement)
+                if context == "facebook_flow":
+                    self._update_prompt_count()
+                win.destroy()
+                self.say("นำพรอมต์ที่ปรับปรุงไปใช้แล้ว", "good")
+
+            buttons = tk.Frame(panel, bg="#FFFFFF")
+            buttons.pack(fill="x", pady=(12, 0))
+            tk.Button(buttons, text="ใช้พรอมต์นี้", command=apply_result, bg="#7C4DFF",
+                      fg="#FFFFFF", relief="flat", padx=12, pady=6).pack(side="right")
+            tk.Button(buttons, text="ปิด", command=win.destroy, bg="#F3EFFE",
+                      fg="#6C47FF", relief="flat", padx=12, pady=6).pack(side="right", padx=8)
+            self.say("วิเคราะห์พรอมต์เสร็จแล้ว", "good")
+
+        def work():
+            try:
+                from .prompt_analysis import analyze_prompt
+                result = analyze_prompt(original, context, duration=duration, key=key)
+                self.after(0, lambda: finish(result=result))
+            except Exception as exc:
+                self.after(0, lambda error=exc: finish(error=error))
+        threading.Thread(target=work, daemon=True).start()
 
     def platform_generate_google(self, platform):
         ui = self.platform_ui[platform]
@@ -6513,6 +6593,9 @@ class StudioApp(tk.Tk):
         RoundedButton(pr_act, text="📋 คัดลอกพรอมต์ Flow", bg="#F3EFFE", fg="#6C47FF", radius=10, padx=12, pady=5, font=(self.F, 8, "bold"), command=self._copy_fb_prompt).pack(side="left", padx=(0, 6))
         RoundedButton(pr_act, text="🚀 ส่งพรอมต์ไปที่ Flow", bg="#7C4DFF", fg="#FFFFFF", radius=10, padx=14, pady=5, font=(self.F, 8, "bold"), command=self._send_fb_to_flow).pack(side="left")
         RoundedButton(pr_act, text="🔄 สร้างพรอมต์ใหม่", bg="#F8F6FD", fg="#7C7895", radius=10, padx=10, pady=5, font=(self.F, 8), command=self._update_fb_prompt).pack(side="right")
+        RoundedButton(c1_inner, text="✦ AI วิเคราะห์พรอมต์", bg="#E8F8F5", fg="#176C68", radius=10,
+                      padx=12, pady=5, font=(self.F, 8, "bold"),
+                      command=lambda: self.analyze_video_prompt(self.txt_fb_prompt, "facebook_flow", self.fb_dur_val.get())).pack(anchor="w", pady=(8, 0))
 
         # --- CARD 4: Facebook Caption ---
         c2 = RoundedCard(r_box, radius=16, padx=16, pady=14, auto_height=True)
