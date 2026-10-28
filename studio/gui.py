@@ -4726,6 +4726,11 @@ class StudioApp(tk.Tk):
         self.plan_genre_cb.pack(side="right")
         self.plan_genre_cb.bind("<<ComboboxSelected>>", lambda e: self.refresh_plan())
 
+        btn_delete_idea = tk.Button(l_head, text="🗑 ลบไอเดียที่เลือก", font=(self.F, 8),
+                                    bg="#FFF5F5", fg="#D64545", relief="solid", bd=1,
+                                    padx=8, pady=2, cursor="hand2", command=self.delete_plan_ideas)
+        btn_delete_idea.pack(side="right", padx=(0, 8))
+
         # Treeview for Ideas
         cols = ("num", "genre", "title", "why", "len")
         self.tv_i = ttk.Treeview(left_card, columns=cols, show="headings", selectmode="extended", height=8)
@@ -4905,25 +4910,29 @@ class StudioApp(tk.Tk):
                 ideas = json.loads(p.read_text(encoding="utf-8-sig"))
             except Exception as e:
                 self.say("อ่านไฟล์ไอเดียไม่ได้: %s" % e, "bad")
-        items = list(ideas.get("ideas", []))
+        items = [(item, p) for item in ideas.get("ideas", [])]
         pp = d / "product_ideas.json"
         if pp.exists():  # product clip ideas from NextsellerAI (studio/product_clips.py)
             try:
-                items += json.loads(pp.read_text(encoding="utf-8-sig")).get("ideas", [])
+                items += [(item, pp) for item in json.loads(pp.read_text(encoding="utf-8-sig")).get("ideas", [])]
             except Exception as e:
                 self.say("อ่านไฟล์ไอเดียคลิปสินค้าไม่ได้: %s" % e, "bad")
         genre_set = set(ideas.get("genres", []))
-        genre_set.update(i.get("genre", "") for i in items if i.get("genre"))
+        genre_set.update(item.get("genre", "") for item, _ in items if item.get("genre"))
         genres = ["ทุกแนว"] + sorted(g for g in genre_set if g)
         self.plan_genre_cb.configure(values=genres)
         want = self.plan_genre.get()
         self.tv_i.delete(*self.tv_i.get_children())
         self._ideas = {}
-        for i, it in enumerate(items):
+        self._idea_sources = {}
+        for i, (it, source) in enumerate(items):
             if want != "ทุกแนว" and it.get("genre") != want:
                 continue
             iid = it.get("id") or "idea%d" % i
+            if iid in self._ideas:
+                iid = "%s-%d" % (iid, i)
             self._ideas[iid] = it
+            self._idea_sources[iid] = source
             self.tv_i.insert("", "end", iid=iid, values=(str(i + 1), it.get("genre", ""), it.get("title", ""),
                                                           it.get("why", ""), it.get("suggested_length", "")))
         self.plan_updated.configure(text=("ไอเดียอัปเดต %s" % ideas.get("updated", "")[:16].replace("T", " "))
@@ -4966,6 +4975,32 @@ class StudioApp(tk.Tk):
             self.tv_r.insert("", "end", iid=str(rp), tags=(tag,), values=(
                 r.get("created", "")[:16].replace("T", " "), what[:90],
                 provider_name, str(len(r.get("items", [])) or 1), st, "👁 ดูผลลัพธ์"))
+
+    def delete_plan_ideas(self):
+        from .planner_ideas import delete_ideas
+
+        selected = self.tv_i.selection()
+        if not selected:
+            messagebox.showinfo("ลบไอเดีย", "เลือกไอเดียที่ต้องการลบจากตารางก่อน")
+            return
+        grouped = {}
+        for iid in selected:
+            item = self._ideas.get(iid, {})
+            source = self._idea_sources.get(iid)
+            if not source or not item.get("id"):
+                messagebox.showerror("ลบไอเดีย", "ไอเดียที่เลือกไม่มีรหัสหรือไฟล์ต้นทาง")
+                return
+            grouped.setdefault(source, set()).add(item["id"])
+        if not messagebox.askyesno("ลบไอเดีย", "ลบไอเดียที่เลือก %d รายการ?" % len(selected)):
+            return
+        try:
+            removed = sum(delete_ideas(source, ids) for source, ids in grouped.items())
+        except Exception as exc:
+            messagebox.showerror("ลบไอเดีย", str(exc))
+            self.refresh_plan()
+            return
+        self.refresh_plan()
+        self.say("ลบไอเดีย %d รายการแล้ว" % removed, "good")
 
     def _plan_request_selected(self):
         selection = self.tv_r.selection()
