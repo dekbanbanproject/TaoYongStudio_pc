@@ -39,6 +39,10 @@ $filesToPack = Get-ChildItem -Path $rootDir -Recurse -File | Where-Object {
     $rel -notmatch '^config\.json$' -and
     $rel -notmatch '^client_secret.*\.json$' -and
     $rel -notmatch 'TaoYongStudio_Setup.*\.exe$' -and
+    $rel -notmatch '^plans\\(requests|results|cancelled|product_prompts)\\' -and
+    $rel -notmatch '^plans\\(product_ideas\.json|ideas\.json\.bak)$' -and
+    $rel -notmatch '^scripts\\(inbox|done|failed|removed|compilations)\\' -and
+    $rel -notmatch '^nextseller\\data\\' -and
     $rel -notmatch 'installer\\bin\\?'
 }
 

@@ -4758,6 +4758,12 @@ class StudioApp(tk.Tk):
         lnk_sample.pack(side="right")
         lnk_sample.bind("<Button-1>", lambda e: self.open_plan_request())
 
+        # Keep the primary action visible even when the planner pane is short.
+        btn_sub = tk.Button(right_card, text="✨ ส่งคำขอไปยัง AI  ›", font=(self.F, 10, "bold"),
+                            bg="#8E6CF7", fg="#FFFFFF", activebackground="#7C5CEF", activeforeground="#FFFFFF",
+                            relief="flat", bd=0, pady=7, cursor="hand2", command=self.send_request)
+        btn_sub.pack(side="bottom", fill="x", pady=(6, 0))
+
         # 1. Choose AI Provider (3 clickable cards)
         tk.Label(right_card, text="1. เลือกผู้ให้บริการ AI", font=(self.F, 9, "bold"), fg="#2C1D63", bg="#FFFFFF").pack(anchor="w", pady=(2, 4))
         self.req_provider = tk.StringVar(value="claude")
@@ -4822,7 +4828,6 @@ class StudioApp(tk.Tk):
 
         # 3. Additional Details
         tk.Label(right_card, text="3. รายละเอียดเพิ่มเติม (ไม่บังคับ)", font=(self.F, 9, "bold"), fg="#2C1D63", bg="#FFFFFF").pack(anchor="w", pady=(4, 2))
-        self.req_custom = tk.StringVar()
         self.req_note = tk.StringVar()
         self.req_len = tk.StringVar(value=self.LENGTHS[0][0])
         self.req_fmt = tk.StringVar(value=self.FORMATS[0][0])
@@ -4833,13 +4838,9 @@ class StudioApp(tk.Tk):
         self.txt_plan_custom = tk.Text(txt_wrap, height=3, bg="#FAF9FE", relief="flat", font=(self.F, 8),
                                        wrap="word", padx=6, pady=4)
         self.txt_plan_custom.pack(fill="x")
-        self.txt_plan_custom.insert("1.0", "เช่น อยากได้ไอเดียเกี่ยวกับธรรมชาติ สำหรับเด็กประถม เรื่องสั้นๆ สนุกๆ")
-
-        # Submit Button
-        btn_sub = tk.Button(right_card, text="✨ ส่งคำขอไปยัง AI  ›", font=(self.F, 10, "bold"),
-                            bg="#8E6CF7", fg="#FFFFFF", activebackground="#7C5CEF", activeforeground="#FFFFFF",
-                            relief="flat", bd=0, pady=7, cursor="hand2", command=self.send_request)
-        btn_sub.pack(fill="x", pady=(2, 0))
+        self._plan_custom_hint = "เช่น อยากได้ไอเดียเกี่ยวกับธรรมชาติ สำหรับเด็กประถม เรื่องสั้นๆ สนุกๆ"
+        self.txt_plan_custom.insert("1.0", self._plan_custom_hint)
+        self.txt_plan_custom.bind("<FocusIn>", self._plan_custom_focus)
 
         # --- LOWER: Request History Card ---
         low = tk.Frame(t, bg="#FFFFFF", padx=12, pady=10, highlightbackground="#EAE4F8", highlightthickness=1, bd=0)
@@ -4861,7 +4862,7 @@ class StudioApp(tk.Tk):
             self.tv_r.heading(c, text=txt)
             self.tv_r.column(c, width=w, anchor="w")
         self.tv_r.pack(fill="x")
-        self.tv_r.bind("<<TreeviewSelect>>", lambda event: self._plan_request_selected())
+        self.tv_r.bind("<ButtonRelease-1>", self._plan_history_clicked)
         self.tv_r.tag_configure("done", foreground=GOOD)
         self.tv_r.tag_configure("pending", foreground=WARN)
 
@@ -4902,6 +4903,8 @@ class StudioApp(tk.Tk):
     def refresh_plan(self):
         if not hasattr(self, "tv_i"):
             return
+        from .credential_store import has_key
+
         d = self._plans()
         ideas = {}
         p = d / "ideas.json"
@@ -4939,6 +4942,7 @@ class StudioApp(tk.Tk):
                                     if ideas else "ยังไม่มีไอเดีย - AI จะสร้างให้ในรอบถัดไป")
         # requests + results
         self.tv_r.delete(*self.tv_r.get_children())
+        gemini_ready = has_key()
         for rp in sorted((d / "requests").glob("REQ-*.json"), reverse=True)[:50]:
             try:
                 r = json.loads(rp.read_text(encoding="utf-8"))
@@ -4954,9 +4958,11 @@ class StudioApp(tk.Tk):
             else:
                 st = "รอ Claude อ่านคำขอ (คิวเดิม)"
             tag = "pending"
+            result_status = ""
             if res.exists():
                 try:
                     rr = json.loads(res.read_text(encoding="utf-8-sig"))
+                    result_status = rr.get("status", "")
                     n = len(rr.get("script_ids", []))
                     st = {"done": "%s เขียนบทแล้ว %d บท" % (provider_name, n),
                           "in_progress": "%s กำลังเขียนบท" % provider_name,
@@ -4969,12 +4975,20 @@ class StudioApp(tk.Tk):
                     tag = "done" if rr.get("status") == "done" else ""
                 except Exception:
                     pass
+            if result_status == "done":
+                action = "📄 เปิดบท"
+            elif result_status == "in_progress":
+                action = "⏳ กำลังทำ"
+            elif provider == "gemini":
+                action = "▶ เขียนบท" if gemini_ready else "🔑 ตั้งคีย์"
+            else:
+                action = "↗ เปิดแชต"
             what = ", ".join(x.get("title", "") for x in r.get("items", []))
             if r.get("custom"):
                 what = (what + ", " if what else "") + r["custom"]
             self.tv_r.insert("", "end", iid=str(rp), tags=(tag,), values=(
                 r.get("created", "")[:16].replace("T", " "), what[:90],
-                provider_name, str(len(r.get("items", [])) or 1), st, "👁 ดูผลลัพธ์"))
+                provider_name, str(len(r.get("items", [])) or 1), st, action))
 
     def delete_plan_ideas(self):
         from .planner_ideas import delete_ideas
@@ -5002,19 +5016,118 @@ class StudioApp(tk.Tk):
         self.refresh_plan()
         self.say("ลบไอเดีย %d รายการแล้ว" % removed, "good")
 
-    def _plan_request_selected(self):
-        selection = self.tv_r.selection()
-        if not selection:
+    def _plan_history_clicked(self, event):
+        if self.tv_r.identify_column(event.x) != "#6":
             return
-        request = json.loads(Path(selection[0]).read_text(encoding="utf-8"))
-        if request.get("delivery") == "chat_handoff":
-            provider = {"claude": "Claude", "gemini": "Gemini", "gpt": "ChatGPT"}.get(
-                request.get("provider"), "AI")
-            self.plan_when.configure(text="ยังไม่ส่งไป %s: กด 'เปิดแชต / คัดลอกคำสั่ง' → วางและส่งในแชต → นำ JSON กลับ" % provider)
-        elif request.get("delivery") == "gemini_api":
-            self.plan_when.configure(text="Gemini API ทำงานผ่านโปรแกรม ตรวจผลด้วยปุ่ม รีเฟรช")
+        row = self.tv_r.identify_row(event.y)
+        if not row:
+            return
+        self.tv_r.selection_set(row)
+        self._plan_history_action(Path(row))
+
+    def _plan_history_action(self, request_path):
+        from .credential_store import has_key
+
+        try:
+            request = json.loads(request_path.read_text(encoding="utf-8"))
+            result_path = self._plans() / "results" / request_path.name
+            result = json.loads(result_path.read_text(encoding="utf-8-sig")) if result_path.exists() else {}
+        except Exception as exc:
+            messagebox.showerror("คำขอไอเดีย", str(exc))
+            return
+        if result.get("status") == "done":
+            self.show_plan_result(request_path)
+        elif result.get("status") == "in_progress":
+            messagebox.showinfo("กำลังเขียนบท", "AI กำลังเขียนบท กรุณารอสักครู่")
+        elif request.get("provider") == "gemini":
+            if not has_key():
+                messagebox.showinfo("ตั้งค่า Gemini", "บันทึก Gemini API key ในแท็บ ตั้งค่า เพื่อให้เขียนบทในโปรแกรมได้")
+                self.nb.select(self.tab_set)
+                return
+            if self._start(["plan-generate", "--request", str(request_path)], "Gemini กำลังเขียนบทในโปรแกรม"):
+                self._plan_running_request = request_path
+                if request.get("delivery") != "gemini_api":
+                    request["delivery"] = "gemini_api"
+                    request_path.write_text(json.dumps(request, ensure_ascii=False, indent=2), encoding="utf-8")
+                self.refresh_plan()
         else:
-            self.plan_when.configure(text="คำขอเก่ารอ Claude อ่านไฟล์ ยังไม่ได้ส่งตรงจากโปรแกรม")
+            self.tv_r.selection_set(str(request_path))
+            self.open_plan_request()
+
+    def show_plan_result(self, request_path):
+        request_path = Path(request_path)
+        result_path = self._plans() / "results" / request_path.name
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8-sig"))
+        except Exception as exc:
+            messagebox.showerror("ผลลัพธ์", "ยังอ่านผลลัพธ์ไม่ได้: %s" % exc)
+            return
+        if result.get("status") != "done":
+            messagebox.showinfo("ผลลัพธ์", result.get("message") or "ยังเขียนบทไม่เสร็จ")
+            return
+
+        scripts = []
+        for ident in result.get("script_ids", []):
+            candidates = [ROOT / "scripts" / "inbox" / (ident + ".json")]
+            candidates += list((ROOT / "scripts" / "done").glob("**/" + ident + ".json"))
+            path = next((candidate for candidate in candidates if candidate.exists()), None)
+            if path:
+                try:
+                    scripts.append((path, json.loads(path.read_text(encoding="utf-8-sig"))))
+                except Exception:
+                    pass
+        if not scripts:
+            messagebox.showinfo("ผลลัพธ์", "เขียนบทแล้ว แต่ไม่พบไฟล์บทในโฟลเดอร์ scripts")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("บทที่ AI เขียนในโปรแกรม")
+        dialog.geometry("780x560")
+        dialog.transient(self)
+        tk.Label(dialog, text="บทที่เขียนเสร็จ %d เรื่อง" % len(scripts),
+                 font=(self.F, 12, "bold"), fg="#2C1D63").pack(anchor="w", padx=12, pady=(12, 6))
+        titles = [sc.get("title", path.stem) for path, sc in scripts]
+        selected = tk.StringVar(value=titles[0])
+        picker = ttk.Combobox(dialog, textvariable=selected, values=titles, state="readonly")
+        picker.pack(fill="x", padx=12, pady=(0, 6))
+        body = tk.Text(dialog, wrap="word", font=(self.F, 10), padx=10, pady=8)
+        body.pack(fill="both", expand=True, padx=12)
+
+        def show_selected(_event=None):
+            index = picker.current()
+            if index < 0:
+                index = 0
+            _, sc = scripts[index]
+            lines = [sc.get("title", ""), "", sc.get("description", ""), ""]
+            for number, scene in enumerate(sc.get("scenes", []), 1):
+                lines.append("ฉาก %d" % number)
+                for beat in scene.get("beats", []):
+                    if beat.get("say"):
+                        who = CHAR_NAMES.get(beat.get("who", ""), beat.get("who", ""))
+                        lines.append("%s: %s" % (who, beat["say"]))
+                lines.append("")
+            body.configure(state="normal")
+            body.delete("1.0", "end")
+            body.insert("1.0", "\n".join(lines))
+            body.configure(state="disabled")
+
+        def go_to_script():
+            index = max(0, picker.current())
+            path, _ = scripts[index]
+            dialog.destroy()
+            self.nb.select(self.tab_scripts)
+            self.refresh_scripts()
+            if self.tv_s.exists(str(path)):
+                self.tv_s.selection_set(str(path))
+                self.tv_s.see(str(path))
+                self.show_script()
+            else:
+                messagebox.showinfo("บท", "บทนี้สร้างคลิปแล้วและย้ายไปที่ scripts/done")
+
+        picker.bind("<<ComboboxSelected>>", show_selected)
+        show_selected()
+        tk.Button(dialog, text="เปิดในแท็บบท", bg="#8E6CF7", fg="#FFFFFF",
+                  command=go_to_script).pack(anchor="e", padx=12, pady=10)
 
     def _len_label(self, sec):
         return next((lbl for lbl, s in self.LENGTHS if s == sec), "%d วิ" % sec)
@@ -5023,10 +5136,10 @@ class StudioApp(tk.Tk):
         provider = self.req_provider.get()
         notes = {
             "claude": "ใช้ Claude Pro ในแชต/งานตั้งเวลา; โปรแกรมเตรียมคำสั่งให้",
-            "gemini": "มี Gemini API key: ทำอัตโนมัติได้ (โควตา API แยก); ไม่มีก็เปิด Gemini Pro",
+            "gemini": "ใช้ Gemini API key เพื่อเขียนบทในโปรแกรม (โควตา API แยก)",
             "gpt": "ใช้ ChatGPT Plus ในแชต/งานตั้งเวลา; ไม่ต้องใช้ OpenAI API key",
         }
-        self.plan_provider_note.configure(text=notes.get(provider, ""))
+        self.say(notes.get(provider, ""))
 
     def _plan_when_changed(self):
         if self.req_when.get() == "later":
@@ -5034,12 +5147,18 @@ class StudioApp(tk.Tk):
         else:
             self.plan_schedule_row.pack_forget()
 
+    def _plan_custom_focus(self, _event):
+        if self.txt_plan_custom.get("1.0", "end-1c").strip() == self._plan_custom_hint:
+            self.txt_plan_custom.delete("1.0", "end")
+
     def send_request(self):
-        from .credential_store import KEY_FILE, load_key
+        from .credential_store import load_key
         from .planner_generate import schedule_request
         from .planner_handoff import chat_handoff_prompt, PROVIDERS
         sel = [self._ideas[i] for i in self.tv_i.selection() if i in getattr(self, "_ideas", {})]
-        custom = self.req_custom.get().strip()
+        custom = self.txt_plan_custom.get("1.0", "end-1c").strip()
+        if custom == self._plan_custom_hint:
+            custom = ""
         if not sel and not custom:
             messagebox.showinfo("ส่งคำขอ", "เลือกไอเดียจากรายการ หรือพิมพ์หัวข้อเองก่อนนะครับ")
             return
@@ -5072,10 +5191,11 @@ class StudioApp(tk.Tk):
             rid += "-%03d" % (now.microsecond // 1000)
         provider = self.req_provider.get()
         gemini_key = load_key() if provider == "gemini" else ""
-        delivery = "gemini_api" if provider == "gemini" and gemini_key else "chat_handoff"
-        if delivery == "gemini_api" and scheduled_at and not KEY_FILE.exists():
-            messagebox.showwarning("Gemini API key", "ตั้งเวลาอัตโนมัติต้องบันทึก Gemini API key ในแท็บตั้งค่าก่อน")
+        if provider == "gemini" and not gemini_key:
+            messagebox.showinfo("ตั้งค่า Gemini", "บันทึก Gemini API key ในแท็บ ตั้งค่า ก่อน เพื่อให้ AI เขียนบทในโปรแกรม")
+            self.nb.select(self.tab_set)
             return
+        delivery = "gemini_api" if provider == "gemini" else "chat_handoff"
         if delivery == "gemini_api" and not scheduled_at and self.proc:
             messagebox.showinfo("กำลังทำงาน", "มีงานกำลังทำอยู่ รอให้เสร็จก่อนแล้วส่งคำขออีกครั้ง")
             return
@@ -5096,12 +5216,13 @@ class StudioApp(tk.Tk):
                 request_path.unlink(missing_ok=True)
                 messagebox.showerror("ตั้งเวลา", str(exc))
                 return
-        self.req_custom.set("")
+        self.txt_plan_custom.delete("1.0", "end")
         self.req_note.set("")
         n = (len(sel) + (1 if custom else 0)) * count
         if delivery == "gemini_api" and not scheduled_at:
             if self._start(["plan-generate", "--request", str(request_path)],
                            "Gemini กำลังเขียนบท %d เรื่อง" % n):
+                self._plan_running_request = request_path
                 self.job_total = 1
             else:
                 self.say("บันทึกคำขอแล้ว เลือกรายการเพื่อเปิดหรือส่งอีกครั้ง", "bad")
@@ -6121,6 +6242,32 @@ class StudioApp(tk.Tk):
             self.btn_batch.configure(state="normal")
         if hasattr(self, "btn_render_clip"):
             self.btn_render_clip.configure(state="normal", text="▶  สร้างคลิปในเครื่อง")
+
+        plan_request = getattr(self, "_plan_running_request", None)
+        self._plan_running_request = None
+        if plan_request is not None:
+            if rc == 0:
+                self.prog.set(100)
+                if hasattr(self, "anim_card_prog"):
+                    self.anim_card_prog.set(100)
+                if hasattr(self, "prog_pct"):
+                    self.prog_pct.configure(text="100%", fg="#10B981")
+            if hasattr(self, "btn_card_cancel"):
+                self.btn_card_cancel.pack_forget()
+            if hasattr(self, "anim_card_icon"):
+                self.anim_card_icon.configure(text="✅" if rc == 0 else "⚠️")
+            self.prog_label.configure(text="เขียนบทเสร็จแล้ว" if rc == 0 else "เขียนบทไม่สำเร็จ")
+            if hasattr(self, "anim_card_title"):
+                self.anim_card_title.configure(text="AI เขียนบทเสร็จแล้ว" if rc == 0 else "AI เขียนบทไม่สำเร็จ")
+            if hasattr(self, "anim_card_detail"):
+                self.anim_card_detail.configure(text="เปิดอ่านบทได้ในโปรแกรม" if rc == 0 else "ดูข้อความผิดพลาดในประวัติคำขอ")
+            self.refresh_all()
+            if rc == 0:
+                self.say("AI เขียนบทเสร็จแล้ว เปิดอ่านได้ในโปรแกรม", "good")
+                self.after(100, lambda: self.show_plan_result(plan_request))
+            else:
+                self.say("AI เขียนบทไม่สำเร็จ เลือกคำขอในประวัติแล้วลองใหม่", "bad")
+            return
 
         if rc == 0:
             if hasattr(self, "anim_card_prog"):

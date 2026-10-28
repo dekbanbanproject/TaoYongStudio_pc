@@ -538,6 +538,13 @@ namespace TaoYongStudioInstaller
                         }
 
                         string destPath = Path.Combine(targetDir, entry.FullName);
+                        // Keep the user's edited/deleted ideas when installing an update.
+                        string relativePath = entry.FullName.Replace('/', '\\');
+                        if (relativePath.Equals(@"plans\ideas.json", StringComparison.OrdinalIgnoreCase)
+                            && File.Exists(destPath))
+                        {
+                            continue;
+                        }
                         string parentDir = Path.GetDirectoryName(destPath);
                         if (!string.IsNullOrEmpty(parentDir) && !Directory.Exists(parentDir))
                         {
