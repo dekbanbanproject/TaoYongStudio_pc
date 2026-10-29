@@ -182,7 +182,7 @@ export default function Dashboard() {
         }
       />
 
-      <div className="stack">
+      <div className="page-fit">
         {/* ------------------------------------------------- welcome banner */}
         <section
           className="card"
@@ -260,15 +260,8 @@ export default function Dashboard() {
         </div>
 
         {/* ------------------------------------------- quick menu + workflow */}
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-            gap: 16,
-            alignItems: "start",
-          }}
-        >
-          <div className="col" style={{ gap: 16 }}>
+        <div className="page-fit__grid">
+          <div className="page-fit__col">
             <PastelCard
               title="เมนูด่วน"
               subtitle="เลือกงานที่ต้องการทำต่อได้ทันที"
@@ -330,7 +323,7 @@ export default function Dashboard() {
             </PastelCard>
           </div>
 
-          <div className="col" style={{ gap: 16 }}>
+          <div className="page-fit__col">
             {/* --------------------------------------------- system status */}
             <PastelCard
               title="สถานะระบบ"

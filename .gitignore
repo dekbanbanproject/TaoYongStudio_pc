@@ -28,3 +28,5 @@ Thumbs.db
 desktop/.tmp_setup/
 .tmp_setup/
 _v1_backup/
+release/
+tools/__pycache__/

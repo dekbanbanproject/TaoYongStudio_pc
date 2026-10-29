@@ -48,9 +48,48 @@ fn app_root() -> String {
         }
     }
 
+    let has = |p: &Path, rel: &str| p.join(rel).exists();
+
+    // A workspace root holds the engine package and the script store.
     let is_root = |p: &Path| p.join("engine").is_dir() && p.join("scripts").is_dir();
 
-    // Packaged app: the workspace sits next to (or under resources/) the exe.
+    // A development workspace also holds the React/Tauri project, which is what
+    // distinguishes it from a Cargo build directory (Tauri copies the bundle
+    // resources next to the binary, so the build folder looks like a root too).
+    let is_dev_workspace =
+        |p: &Path| is_root(p) && p.join("desktop").join("src").is_dir();
+
+    let mut exe_ancestors: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(dir) = exe_dir() {
+        exe_ancestors.push(dir.clone());
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        let mut p = exe.as_path();
+        while let Some(parent) = p.parent() {
+            exe_ancestors.push(parent.to_path_buf());
+            p = parent;
+        }
+    }
+
+    let mut cwd_ancestors: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        let mut p = cwd.as_path();
+        cwd_ancestors.push(cwd.clone());
+        while let Some(parent) = p.parent() {
+            cwd_ancestors.push(parent.to_path_buf());
+            p = parent;
+        }
+    }
+
+    // 1) A development workspace above the executable wins: it holds the live
+    //    engine source and its virtualenv.
+    for c in &exe_ancestors {
+        if is_dev_workspace(c) {
+            return c.to_string_lossy().to_string();
+        }
+    }
+
+    // 2) A packaged app: its own folder holds the engine and the data.
     if let Some(dir) = exe_dir() {
         if is_root(&dir) {
             return dir.to_string_lossy().to_string();
@@ -61,17 +100,20 @@ fn app_root() -> String {
         }
     }
 
-    // Development: walk up from the exe until the workspace root appears.
-    if let Ok(exe) = std::env::current_exe() {
-        let mut p = exe.as_path();
-        while let Some(parent) = p.parent() {
-            if is_root(parent) {
-                return parent.to_string_lossy().to_string();
-            }
-            p = parent;
+    // 3) Fall back to the working directory, but only when nothing above the
+    //    executable matched.
+    for c in &cwd_ancestors {
+        if is_dev_workspace(c) {
+            return c.to_string_lossy().to_string();
+        }
+    }
+    for c in &cwd_ancestors {
+        if is_root(c) {
+            return c.to_string_lossy().to_string();
         }
     }
 
+    let _ = has;
     std::env::current_dir()
         .map(|d| d.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string())
@@ -166,7 +208,14 @@ fn find_sidecar(root: &str) -> Option<(String, String)> {
     }
     if let Some(dir) = exe_dir() {
         candidates.push(dir.join("engine").join("taoyong-engine.exe"));
+        candidates.push(dir.join("engine").join("taoyong-engine").join("taoyong-engine.exe"));
         candidates.push(dir.join("resources").join("engine").join("taoyong-engine.exe"));
+        candidates.push(
+            dir.join("resources")
+                .join("engine")
+                .join("taoyong-engine")
+                .join("taoyong-engine.exe"),
+        );
         candidates.push(dir.join("resources").join("taoyong-engine").join("taoyong-engine.exe"));
         candidates.push(dir.join("taoyong-engine").join("taoyong-engine.exe"));
     }
