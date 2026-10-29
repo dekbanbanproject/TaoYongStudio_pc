@@ -1,5 +1,7 @@
 # --- Python engine ---
 engine/.venv/
+engine/dist/
+engine/build/
 __pycache__/
 *.pyc
 *.pyo
@@ -8,6 +10,7 @@ __pycache__/
 # --- Node / frontend ---
 node_modules/
 desktop/dist/
+desktop/*.tsbuildinfo
 desktop/src-tauri/target/
 desktop/src-tauri/gen/schemas/
 

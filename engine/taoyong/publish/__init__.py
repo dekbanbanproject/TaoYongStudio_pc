@@ -18,9 +18,13 @@ DEFAULTS = {
     "mode": "off",  # off | approved | auto
     "max_per_day": 2,
     "post_times": ["12:00", "18:00"],
-    "youtube": {"enabled": False, "format": "vertical", "privacy": "public", "category_id": "27"},
-    "facebook_page": {"enabled": False, "format": "vertical", "graph_version": "v26.0"},
-    "tiktok": {"enabled": False, "format": "vertical", "redirect_port": 3455},
+    "youtube": {"enabled": False, "format": "vertical", "privacy": "public",
+                "category_id": "27", "max_per_day": 2},
+    "facebook_page": {"enabled": False, "format": "vertical", "graph_version": "v26.0",
+                      "max_per_day": 2},
+    "tiktok": {"enabled": False, "format": "vertical", "redirect_port": 3455,
+               "max_per_day": 3},
+    "facebook_profile": {"enabled": False, "format": "vertical", "max_per_day": 1},
 }
 
 SECRETS = ROOT / "secrets"
@@ -202,7 +206,8 @@ def run_auto(cfg, log=print, per_run=1):
         if not is_connected(platform):
             log("%s: enabled but not connected - skipped" % LABEL[platform])
             continue
-        room = int(st.get("max_per_day", 2)) - posted_today(platform)
+        room = min(int(st.get("max_per_day", 2)),
+                   int(pcfg.get("max_per_day", st.get("max_per_day", 2)))) - posted_today(platform)
         if room <= 0:
             log("%s: daily limit reached" % LABEL[platform])
             continue

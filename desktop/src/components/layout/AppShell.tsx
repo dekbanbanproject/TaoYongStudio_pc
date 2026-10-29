@@ -80,12 +80,21 @@ function Sidebar() {
   );
 }
 
+const IN_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
 function WindowControls() {
   const [maximized, setMaximized] = useState(false);
+
   useEffect(() => {
+    if (!IN_TAURI) return;
     const w = getCurrentWindow();
-    w.isMaximized().then(setMaximized).catch(() => {});
+    w.isMaximized()
+      .then(setMaximized)
+      .catch(() => {});
   }, []);
+
+  // Outside the desktop shell (browser preview) there is no window to control.
+  if (!IN_TAURI) return null;
 
   return (
     <div className="window-controls">

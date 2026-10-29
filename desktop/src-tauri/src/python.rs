@@ -9,7 +9,9 @@ use serde_json::{json, Value};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
+use std::sync::mpsc::{channel, RecvTimeoutError};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -28,10 +30,12 @@ fn random_token() -> String {
     let mut out = String::new();
     for _ in 0..4 {
         let mut h = RandomState::new().build_hasher();
-        h.write_u64(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos() as u64)
-            .unwrap_or(0));
+        h.write_u64(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(0),
+        );
         out.push_str(&format!("{:016x}", h.finish()));
     }
     out
@@ -43,16 +47,31 @@ fn app_root() -> String {
             return v;
         }
     }
-    // dev: <repo>/desktop/src-tauri  ->  <repo>
+
+    let is_root = |p: &Path| p.join("engine").is_dir() && p.join("scripts").is_dir();
+
+    // Packaged app: the workspace sits next to (or under resources/) the exe.
+    if let Some(dir) = exe_dir() {
+        if is_root(&dir) {
+            return dir.to_string_lossy().to_string();
+        }
+        let res = dir.join("resources");
+        if is_root(&res) {
+            return res.to_string_lossy().to_string();
+        }
+    }
+
+    // Development: walk up from the exe until the workspace root appears.
     if let Ok(exe) = std::env::current_exe() {
         let mut p = exe.as_path();
         while let Some(parent) = p.parent() {
-            if parent.join("engine").is_dir() && parent.join("scripts").is_dir() {
+            if is_root(parent) {
                 return parent.to_string_lossy().to_string();
             }
             p = parent;
         }
     }
+
     std::env::current_dir()
         .map(|d| d.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string())
@@ -81,27 +100,137 @@ fn python_exe(root: &str) -> String {
     "python".to_string()
 }
 
+/// How the engine process is started.
+enum Launcher {
+    /// `python -m taoyong.service ...`
+    Python { exe: String, cwd: String, root: String },
+    /// `taoyong-engine.exe --host ... --port ... --token ...` (packaged sidecar)
+    Sidecar { exe: String, cwd: String, root: String },
+}
+
+impl Launcher {
+    fn command(&self, token: &str) -> Command {
+        let mut cmd = match self {
+            Launcher::Python { exe, cwd, .. } => {
+                let mut c = Command::new(exe);
+                c.args(["-m", "taoyong.service"]);
+                c.current_dir(cwd);
+                c
+            }
+            Launcher::Sidecar { exe, cwd, .. } => {
+                let mut c = Command::new(exe);
+                c.current_dir(cwd);
+                c
+            }
+        };
+        cmd.args([
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "0",
+            "--token",
+            token,
+        ])
+        .env("TAOYONG_ROOT", &self.root())
+        .env("PYTHONUNBUFFERED", "1")
+        .env("PYTHONIOENCODING", "utf-8")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+        cmd
+    }
+
+    fn root(&self) -> &str {
+        match self {
+            Launcher::Python { root, .. } => root,
+            Launcher::Sidecar { root, .. } => root,
+        }
+    }
+}
+
+fn exe_dir() -> Option<std::path::PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(|p| p.to_path_buf()))
+}
+
+/// Tauri lays resources out differently per platform and per bundle config, so
+/// look in every place the sidecar may have been placed.
+fn find_sidecar(root: &str) -> Option<(String, String)> {
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+
+    if let Ok(v) = std::env::var("TAOYONG_ENGINE_SIDECAR") {
+        if !v.trim().is_empty() {
+            candidates.push(std::path::PathBuf::from(v));
+        }
+    }
+    if let Some(dir) = exe_dir() {
+        candidates.push(dir.join("engine").join("taoyong-engine.exe"));
+        candidates.push(dir.join("resources").join("engine").join("taoyong-engine.exe"));
+        candidates.push(dir.join("resources").join("taoyong-engine").join("taoyong-engine.exe"));
+        candidates.push(dir.join("taoyong-engine").join("taoyong-engine.exe"));
+    }
+    let rp = Path::new(root);
+    candidates.push(
+        rp.join("engine")
+            .join("dist")
+            .join("taoyong-engine")
+            .join("taoyong-engine.exe"),
+    );
+
+    for c in candidates {
+        if c.exists() {
+            let cwd = c
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| root.to_string());
+            return Some((c.to_string_lossy().to_string(), cwd));
+        }
+    }
+    None
+}
+
+fn resolve_launcher(root: &str) -> Launcher {
+    let root_path = Path::new(root);
+
+    // 1) project virtualenv (development — always uses the live engine source)
+    let venv = root_path
+        .join("engine")
+        .join(".venv")
+        .join("Scripts")
+        .join("python.exe");
+    if venv.exists() {
+        return Launcher::Python {
+            exe: venv.to_string_lossy().to_string(),
+            cwd: format!("{}\\engine", root),
+            root: root.to_string(),
+        };
+    }
+
+    // 2) packaged / locally built sidecar
+    if let Some((exe, cwd)) = find_sidecar(root) {
+        return Launcher::Sidecar {
+            exe,
+            cwd,
+            root: root.to_string(),
+        };
+    }
+
+    // 3) system Python
+    Launcher::Python {
+        exe: "python".to_string(),
+        cwd: format!("{}\\engine", root),
+        root: root.to_string(),
+    }
+}
+
 impl PythonService {
     fn spawn(root: String, engine_dir: String, python_exe: String) -> Result<Self, String> {
         let token = random_token();
-        let mut child = Command::new(&python_exe)
-            .args([
-                "-m",
-                "taoyong.service",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                "0",
-                "--token",
-                &token,
-            ])
-            .current_dir(&engine_dir)
-            .env("TAOYONG_ROOT", &root)
-            .env("PYTHONUNBUFFERED", "1")
-            .env("PYTHONIOENCODING", "utf-8")
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+
+        let launcher = resolve_launcher(&root);
+        let mut child = launcher
+            .command(&token)
             .spawn()
             .map_err(|e| {
                 format!(
@@ -110,49 +239,42 @@ impl PythonService {
                 )
             })?;
 
-        // READY line: {"port": <int>, "token": "<token>"}
         let stdout = child.stdout.take().ok_or("ไม่พบ stdout ของ Python Engine")?;
-        let mut reader = BufReader::new(stdout);
-        let mut line = String::new();
-        let mut port: Option<u16> = None;
-        let mut announced = String::new();
+        let (tx, rx) = channel::<u16>();
 
-        for _ in 0..40 {
-            line.clear();
-            let n = reader
-                .read_line(&mut line)
-                .map_err(|e| format!("อ่าน stdout ของ Python Engine ไม่ได้: {}", e))?;
-            if n == 0 {
-                break;
-            }
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
-                if let Some(p) = v.get("port").and_then(|p| p.as_u64()) {
-                    port = Some(p as u16);
-                    if let Some(t) = v.get("token").and_then(|t| t.as_str()) {
-                        announced = t.to_string();
+        // One thread owns stdout: it reports the port and then keeps draining.
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            let mut reported = false;
+            for line in reader.lines().map_while(Result::ok) {
+                let t = line.trim();
+                if t.is_empty() {
+                    continue;
+                }
+                if !reported {
+                    let mut port: Option<u16> = None;
+                    if let Ok(v) = serde_json::from_str::<Value>(t) {
+                        if let Some(p) = v.get("port").and_then(|p| p.as_u64()) {
+                            port = Some(p as u16);
+                        }
+                    } else if t.starts_with("READY") {
+                        port = t
+                            .split_whitespace()
+                            .nth(1)
+                            .and_then(|p| p.parse::<u16>().ok());
                     }
-                    break;
+                    if let Some(p) = port {
+                        reported = true;
+                        let _ = tx.send(p);
+                        continue;
+                    }
                 }
+                eprintln!("[python-engine] {}", t);
             }
-            if trimmed.starts_with("READY") {
-                // READY <port>
-                if let Some(p) = trimmed.split_whitespace().nth(1).and_then(|p| p.parse::<u16>().ok()) {
-                    port = Some(p);
-                    break;
-                }
-            }
-        }
+        });
 
-        let port = port.ok_or_else(|| {
-            "Python Engine เริ่มทำงานแต่ไม่ส่งพอร์ตกลับมา (ดู log ของ Python Engine)".to_string()
-        })?;
-
-        // Drain stderr in the background so the engine's traceback is never lost.
-        if let Some(stderr) = child.stderr.take() {
+        let stderr = child.stderr.take();
+        if let Some(stderr) = stderr {
             std::thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().map_while(Result::ok) {
@@ -161,18 +283,21 @@ impl PythonService {
             });
         }
 
-        // Keep draining stdout so the pipe never blocks the engine.
-        std::thread::spawn(move || {
-            let mut reader = BufReader::new(stdout);
-            for line in reader.lines().map_while(Result::ok) {
-                let t = line.trim();
-                if !t.is_empty() && !t.starts_with('{') && !t.starts_with("READY") {
-                    eprintln!("[python-engine] {}", t);
-                }
+        let port = match rx.recv_timeout(Duration::from_secs(30)) {
+            Ok(p) => p,
+            Err(RecvTimeoutError::Timeout) => {
+                let _ = child.kill();
+                return Err(
+                    "Python Engine เริ่มทำงานแต่ไม่ตอบกลับภายใน 30 วินาที (ดู log ของ Python Engine)"
+                        .to_string(),
+                );
             }
-        });
+            Err(_) => {
+                let _ = child.kill();
+                return Err("Python Engine หยุดทำงานก่อนจะเริ่มให้บริการได้".to_string());
+            }
+        };
 
-        let token = if announced.is_empty() { token } else { announced };
         Ok(PythonService {
             child: Mutex::new(Some(child)),
             base_url: format!("http://127.0.0.1:{}", port),
@@ -185,6 +310,8 @@ impl PythonService {
 
     fn request_raw(&self, method: &str, path: &str, body: Option<Value>) -> Result<Value, String> {
         let url = format!("{}{}", self.base_url, path);
+        let payload = body.unwrap_or(Value::Object(Default::default()));
+
         let result = match method.to_ascii_uppercase().as_str() {
             "GET" => ureq::get(&url)
                 .set("X-TAOYONG-TOKEN", &self.token)
@@ -192,36 +319,29 @@ impl PythonService {
             "DELETE" => ureq::delete(&url)
                 .set("X-TAOYONG-TOKEN", &self.token)
                 .call(),
-            "POST" => {
-                let payload = body.unwrap_or(Value::Object(Default::default()));
-                ureq::post(&url)
-                    .set("X-TAOYONG-TOKEN", &self.token)
-                    .send_json(&payload)
-            }
-            "PUT" => {
-                let payload = body.unwrap_or(Value::Object(Default::default()));
-                ureq::put(&url)
-                    .set("X-TAOYONG-TOKEN", &self.token)
-                    .send_json(&payload)
-            }
+            "POST" => ureq::post(&url)
+                .set("X-TAOYONG-TOKEN", &self.token)
+                .send_json(&payload),
+            "PUT" => ureq::put(&url)
+                .set("X-TAOYONG-TOKEN", &self.token)
+                .send_json(&payload),
             other => return Err(format!("วิธีเรียก API ไม่รองรับ: {}", other)),
         };
 
         match result {
             Ok(resp) => resp
-                .body_mut()
-                .read_json::<Value>()
+                .into_json::<Value>()
                 .map_err(|e| format!("อ่านคำตอบจาก Python Engine ไม่ได้: {}", e)),
             Err(ureq::Error::Status(code, resp)) => {
-                let payload: Value = resp
-                    .body_mut()
-                    .read_json()
-                    .unwrap_or_else(|_| json!({ "error": format!("HTTP {}", code) }));
-                let msg = payload
-                    .get("error")
-                    .and_then(|e| e.as_str())
-                    .unwrap_or("ไม่ทราบสาเหตุ")
-                    .to_string();
+                let raw = resp.into_string().unwrap_or_default();
+                let msg = serde_json::from_str::<Value>(&raw)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("error")
+                            .and_then(|e| e.as_str())
+                            .map(|s| s.to_string())
+                    })
+                    .unwrap_or_else(|| format!("HTTP {}", code));
                 Err(format!("{} (HTTP {})", msg, code))
             }
             Err(e) => Err(format!("เชื่อมต่อ Python Engine ไม่สำเร็จ: {}", e)),
@@ -263,12 +383,12 @@ fn with_service<T>(f: impl FnOnce(&PythonService) -> T) -> Result<T, String> {
 
 /// Public JSON API used by the React layer.
 pub fn api_request(method: String, path: String, body: Option<Value>) -> Result<Value, String> {
-    with_service(|svc| svc.request_raw(&method, &path, body))
+    with_service(|svc| svc.request_raw(&method, &path, body))?
 }
 
 pub fn engine_status() -> Value {
     match with_service(|svc| svc.status()) {
-        Ok(mut v) => v,
+        Ok(v) => v,
         Err(e) => json!({ "running": false, "error": e }),
     }
 }
@@ -277,22 +397,26 @@ pub fn engine_restart() -> Result<Value, String> {
     {
         let mut guard = SERVICE.lock().map_err(|_| "service lock poisoned".to_string())?;
         if let Some(svc) = guard.as_mut() {
-            if let Some(child) = svc.child.lock().ok().and_then(|mut c| c.take()) {
-                let _ = child.kill();
+            if let Ok(mut slot) = svc.child.lock() {
+                if let Some(mut child) = slot.take() {
+                    let _ = child.kill();
+                }
             }
         }
         *guard = None;
     }
     std::thread::sleep(Duration::from_millis(300));
     ensure_started()?;
-    engine_status()
+    Ok(engine_status())
 }
 
 pub fn shutdown() {
     if let Ok(mut guard) = SERVICE.lock() {
         if let Some(svc) = guard.as_mut() {
-            if let Some(child) = svc.child.lock().ok().and_then(|mut c| c.take()) {
-                let _ = child.kill();
+            if let Ok(mut slot) = svc.child.lock() {
+                if let Some(mut child) = slot.take() {
+                    let _ = child.kill();
+                }
             }
         }
         *guard = None;

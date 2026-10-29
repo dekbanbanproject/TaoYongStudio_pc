@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use crate::python;
+
 /// Generic JSON proxy to the local Python engine service.
 /// The React layer never talks to Python directly; everything goes through here.
 #[tauri::command]

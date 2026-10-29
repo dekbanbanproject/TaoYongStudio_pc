@@ -23,6 +23,7 @@ from . import api as apimod
 
 TOKEN = ""
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
+DEV_CORS = False
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -47,6 +48,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
+        if DEV_CORS:
+            # Only enabled with --dev-cors (browser development). The token is
+            # still required, and the shipped app never passes this flag.
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-TAOYONG-TOKEN")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.end_headers()
         try:
             self.wfile.write(raw)
@@ -54,6 +61,10 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def _dispatch(self, method):
+        if method == "OPTIONS" and DEV_CORS:
+            self._send(204, {})
+            return
+
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         query = {k: v[0] for k, v in parse_qs(parsed.query).items()}
@@ -99,6 +110,9 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, result)
 
     # -------------------------------------------------------------- verbs
+    def do_OPTIONS(self):
+        self._dispatch("OPTIONS")
+
     def do_GET(self):
         self._dispatch("GET")
 
@@ -112,9 +126,10 @@ class Handler(BaseHTTPRequestHandler):
         self._dispatch("DELETE")
 
 
-def serve(host="127.0.0.1", port=0, token=None):
-    global TOKEN
+def serve(host="127.0.0.1", port=0, token=None, dev_cors=False):
+    global TOKEN, DEV_CORS
     TOKEN = token or os.environ.get("TAOYONG_TOKEN", "")
+    DEV_CORS = bool(dev_cors)
 
     class Server(ThreadingHTTPServer):
         daemon_threads = True
@@ -138,11 +153,13 @@ def main(argv=None):
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--token", default="")
+    ap.add_argument("--dev-cors", action="store_true",
+                    help="allow browser origins (development only)")
     args = ap.parse_args(argv)
     if args.host not in ("127.0.0.1", "localhost", "::1"):
         print("refusing to bind a non-loopback address: %s" % args.host, file=sys.stderr)
         return 2
-    serve(args.host, args.port, args.token)
+    serve(args.host, args.port, args.token, args.dev_cors)
     return 0
 
 

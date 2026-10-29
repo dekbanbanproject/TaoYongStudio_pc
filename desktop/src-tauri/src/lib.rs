@@ -1,8 +1,6 @@
 mod commands;
 mod python;
 
-use tauri_plugin_opener::OpenerExt;
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -22,7 +20,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|_window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 python::shutdown();
             }

@@ -579,6 +579,8 @@ def planner_request(query, body):
     """Create a real planner request file and, when Gemini is configured, run it."""
     root = ROOT
     provider = (body.get("provider") or "gemini").lower()
+    if provider in ("chatgpt", "gpt"):
+        provider = "gpt"
     when = body.get("when") or "now"
     now = dt.datetime.now()
     stamp = now.strftime("%Y%m%d-%H%M%S")
@@ -586,20 +588,85 @@ def planner_request(query, body):
     details = (body.get("details") or "").strip()
     idea_ids = body.get("ideaIds") or []
 
+    # Resolve the selected ideas so the prompt builder receives real topics.
+    ideas_doc = _read_json(root / "plans" / "ideas.json", {}) or {}
+    all_ideas = ideas_doc.get("ideas") or []
+    by_id = {str(i.get("id")): i for i in all_ideas if isinstance(i, dict) and i.get("id")}
+    items = []
+    for iid in idea_ids:
+        idea = by_id.get(str(iid))
+        if idea is None:
+            continue
+        items.append({
+            "title": idea.get("title") or "",
+            "summary": idea.get("summary") or idea.get("why") or "",
+            "genre": idea.get("genre") or idea.get("category") or "",
+            "characters": idea.get("characters") or [],
+        })
+
+    scheduled_at = body.get("scheduledAt") or ""
+    if not scheduled_at and body.get("customTime"):
+        try:
+            scheduled_at = str(body["customTime"]).replace("T", " ")
+        except Exception:
+            scheduled_at = str(body["customTime"])
+
     req = {
         "id": rid,
         "provider": provider,
         "when": when,
-        "scheduled_at": body.get("scheduledAt") or "",
+        "scheduled_at": scheduled_at,
         "custom_time": body.get("customTime") or "",
         "topic": (body.get("topic") or details or "ไอเดียใหม่")[:120],
         "details": details,
         "idea_ids": idea_ids,
+        "items": items,
+        "custom": details,
+        "note": details,
+        "count_per_item": int(body.get("countPerItem") or 1),
+        "length_seconds": int(body.get("lengthSeconds") or 30),
+        "format": body.get("format") or "both",
         "status": "pending",
         "created_at": now.isoformat(timespec="seconds"),
     }
     req_path = root / "plans" / "requests" / ("%s.json" % rid)
     _write_json(req_path, req)
+
+    result_path = root / "plans" / "results" / ("%s.json" % rid)
+
+    # Scheduled request -> register a real Windows scheduled task.
+    if when == "scheduled":
+        if provider != "gemini":
+            req["status"] = "pending"
+            _write_json(req_path, req)
+            return {"ok": True, "requestId": rid, "status": "pending",
+                    "note": "บันทึกคำขอแล้ว — การตั้งเวลาอัตโนมัติรองรับเฉพาะ Gemini "
+                            "(ต้องตั้งค่า Gemini API Key ในหน้าตั้งค่า)"}
+        try:
+            from . import planner_generate
+            when_dt = None
+            if scheduled_at:
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"):
+                    try:
+                        when_dt = dt.datetime.strptime(scheduled_at, fmt)
+                        break
+                    except ValueError:
+                        continue
+            if when_dt is None:
+                when_dt = now + dt.timedelta(hours=1)
+            planner_generate.schedule_request(str(req_path), when_dt, root=root)
+            req["status"] = "scheduled"
+            req["scheduled_at"] = when_dt.strftime("%Y-%m-%d %H:%M")
+            _write_json(req_path, req)
+            return {"ok": True, "requestId": rid, "status": "scheduled",
+                    "scheduledAt": req["scheduled_at"],
+                    "note": "ตั้งงานกับ Windows Task Scheduler เรียบร้อย "
+                            "(เปิดเครื่องไว้ถึงเวลาที่กำหนด)"}
+        except Exception as e:
+            req["status"] = "failed"
+            req["error"] = str(e)
+            _write_json(req_path, req)
+            return {"ok": False, "requestId": rid, "status": "failed", "error": str(e)}
 
     if provider == "gemini" and when == "now":
         try:
@@ -608,7 +675,7 @@ def planner_request(query, body):
             req["status"] = "done"
             _write_json(req_path, req)
             return {"ok": True, "requestId": rid, "status": "done",
-                    "resultPath": _rel(root / "plans" / "results" / ("%s.json" % rid)),
+                    "resultPath": _rel(result_path),
                     "note": "สร้างไอเดียด้วย Gemini API สำเร็จ"}
         except Exception as e:
             req["status"] = "failed"
@@ -618,6 +685,83 @@ def planner_request(query, body):
 
     return {"ok": True, "requestId": rid, "status": "pending",
             "note": "สร้างคำขอแล้ว — เปิด AI ที่เลือกแล้วนำคำสั่งไปวางเพื่อรับผลลัพธ์"}
+
+
+@route("GET", "/api/planner/prompt")
+def planner_prompt(query, body):
+    """The exact prompt the engine would send, so it can be copied into any AI chat."""
+    root = ROOT
+    rid = (query.get("requestId") or "").strip()
+    if rid:
+        req = _read_json(root / "plans" / "requests" / ("%s.json" % rid))
+    else:
+        req = query.get("request") if isinstance(query.get("request"), dict) else None
+    if not isinstance(req, dict):
+        raise ValueError("ไม่พบคำขอ %s" % rid)
+    from . import planner_handoff
+    try:
+        return {"ok": True, "prompt": planner_handoff.request_prompt(req),
+                "chatPrompt": planner_handoff.chat_handoff_prompt(req)}
+    except Exception as e:
+        raise ValueError("สร้างพรอมต์ไม่สำเร็จ: %s" % e)
+
+
+@route("POST", "/api/publish/clip")
+def publish_clip(query, body):
+    """Upload one rendered clip to a connected platform through the real publish API.
+
+    Supported: youtube, facebook_page, tiktok (TikTok receives a DRAFT).
+    facebook_profile and shopee have no API in this product - the user posts manually.
+    """
+    root = ROOT
+    folder = _safe_rel(root, body.get("folder", ""))
+    platform = (body.get("platform") or "").strip()
+    if platform not in ("youtube", "facebook_page", "tiktok"):
+        raise ValueError("แพลตฟอร์มนี้ไม่มีการโพสต์ผ่าน API — ต้องโพสต์ด้วยตนเอง")
+    if not (folder / "meta.json").exists():
+        raise ValueError("ไม่พบไฟล์ meta.json ของคลิปนี้")
+
+    cfg = load_cfg()
+    from .publish import is_connected
+    try:
+        if not is_connected(platform):
+            raise ValueError("ยังไม่ได้เชื่อมต่อบัญชีของแพลตฟอร์มนี้")
+    except ValueError:
+        raise
+    except Exception:
+        pass
+
+    jid = _job_new("publish", "โพสต์คลิปไปยัง %s" % platform)
+
+    def run():
+        try:
+            from .publish import post_clip
+            meta = post_clip(str(folder), platform, cfg,
+                             log=lambda m: _job_log(jid, m),
+                             force=bool(body.get("force")))
+            _job_done(jid, result=meta)
+        except Exception as e:
+            _job_done(jid, error="%s\n%s" % (e, traceback.format_exc(limit=4)))
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"ok": True, "jobId": jid, "platform": platform}
+
+
+@route("POST", "/api/publish/caption")
+def publish_caption(query, body):
+    """Return the exact caption the engine would publish for this clip + platform."""
+    root = ROOT
+    folder = _safe_rel(root, body.get("folder", ""))
+    platform = (body.get("platform") or "").strip()
+    meta = _read_json(folder / "meta.json")
+    if not isinstance(meta, dict):
+        raise ValueError("ไม่พบไฟล์ meta.json ของคลิปนี้")
+    from .publish import caption as build_caption
+    try:
+        text = build_caption(meta, platform)
+    except Exception as e:
+        raise ValueError("สร้างคำบรรยายไม่สำเร็จ: %s" % e)
+    return {"ok": True, "caption": text, "platform": platform}
 
 
 @route("POST", "/api/planner/import-response")
@@ -636,9 +780,23 @@ def planner_import(query, body):
         out = planner_handoff.import_response(text, req, root=root)
     except Exception as e:
         raise ValueError("นำเข้าผลลัพธ์ไม่สำเร็จ: %s" % e)
+
+    # import_response returns (script_ids, compilation_id)
+    script_ids = []
+    compilation_id = ""
+    if isinstance(out, tuple):
+        if out:
+            script_ids = list(out[0] or [])
+        if len(out) > 1:
+            compilation_id = out[1] or ""
+    elif isinstance(out, list):
+        script_ids = list(out)
+
     req["status"] = "done"
     _write_json(req_path, req)
-    return {"ok": True, "resultPath": _rel(out) if isinstance(out, (str, Path)) else "",
+    result_path = root / "plans" / "results" / ("%s.json" % rid)
+    return {"ok": True, "resultPath": _rel(result_path),
+            "scriptIds": script_ids, "compilationId": compilation_id,
             "imported": True}
 
 
@@ -768,12 +926,15 @@ def posting_status(query, body):
             name = account_name(p) if connected else ""
         except Exception:
             connected, name = False, ""
+        pcfg = st.get(p) or {}
         out["platforms"][p] = {
             "label": PLATFORM_LABEL.get(p, p),
             "connected": connected,
             "accountName": name,
             "postedToday": posted_today(p) if p != "facebook_profile" else 0,
-            "settings": st.get(p) or {},
+            "enabled": bool(pcfg.get("enabled")),
+            "maxPerDay": int(pcfg.get("max_per_day", st.get("max_per_day", 2))),
+            "settings": pcfg,
         }
     return {"ok": True, "posting": out}
 
@@ -837,12 +998,18 @@ def scheduler_get(query, body):
     data = data or {}
     times = sched.normalize_times(data.get("times") or [])
     next_run, countdown = sched.get_next_run(times) if times else (None, "")
+    raw_platforms = data.get("platforms") or {}
+    if isinstance(raw_platforms, dict):
+        enabled = [k for k, v in raw_platforms.items() if v]
+    else:
+        enabled = list(raw_platforms)
     return {
         "ok": True,
         "schedule": {
             "enabled": bool(data.get("enabled")),
             "times": times,
-            "platforms": data.get("platforms") or [],
+            "platforms": enabled,
+            "platformFlags": raw_platforms if isinstance(raw_platforms, dict) else {},
             "perDay": data.get("per_day") or data.get("max_per_day") or 2,
             "mode": data.get("mode") or "manual",
             "lastRun": data.get("last_run") or "",
@@ -851,6 +1018,7 @@ def scheduler_get(query, body):
             "countdown": countdown or "",
         },
         "presetTimes": ["08:00", "12:00", "20:00"],
+        "availablePlatforms": ["facebook_profile", "facebook_page", "tiktok", "youtube", "batch_render"],
     }
 
 
@@ -859,7 +1027,20 @@ def scheduler_save(query, body):
     root = ROOT
     from . import ai_worker_scheduler as sched
     data = sched.load_schedule() or {}
-    data.update(body.get("schedule") or {})
+    payload = dict(body.get("schedule") or {})
+
+    # platforms arrive as a list of enabled keys from the UI
+    if "platforms" in payload and isinstance(payload["platforms"], list):
+        flags = dict(data.get("platforms") or {})
+        if not isinstance(flags, dict):
+            flags = {}
+        for key in list(flags.keys()):
+            flags[key] = False
+        for key in payload["platforms"]:
+            flags[key] = True
+        payload["platforms"] = flags
+
+    data.update(payload)
     data["times"] = sched.normalize_times(data.get("times") or [])
     sched.save_schedule(data)
     try:
@@ -877,6 +1058,16 @@ def scheduler_test(query, body):
     root = ROOT
     jid = _job_new("worker_test", "ทดสอบการทำงานของพนักงาน AI")
     platforms = (body.get("schedule") or {}).get("platforms") or []
+    if not platforms:
+        try:
+            from . import ai_worker_scheduler as sched
+            raw = (sched.load_schedule() or {}).get("platforms") or {}
+            if isinstance(raw, dict):
+                platforms = [k for k, v in raw.items() if v]
+            else:
+                platforms = list(raw)
+        except Exception:
+            platforms = []
 
     def run():
         try:
@@ -924,6 +1115,12 @@ def settings_get(query, body):
     except Exception:
         fb_connected = False
     azure_key = (cfg.get("tts") or {}).get("azure_key") or ""
+    if not azure_key.strip():
+        try:
+            from . import credential_store
+            azure_key = credential_store.load_secret(AZURE_SECRET)
+        except Exception:
+            azure_key = ""
     return {
         "ok": True,
         "settings": {
@@ -946,8 +1143,7 @@ def settings_get(query, body):
             "azure": {"connected": bool(azure_key), "label": "Azure Speech",
                       "region": (cfg.get("tts") or {}).get("azure_region") or ""},
             "facebookPage": {"connected": fb_connected, "label": "Facebook Page"},
-        },
-        "characters": ["narrator", "bunny", "bear", "chick", "cat"],
+        },        "characters": ["narrator", "bunny", "bear", "chick", "cat"],
         "voiceOptions": ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"],
     }
 
@@ -1014,6 +1210,42 @@ def settings_key_delete(query, body):
     return {"ok": True, "connected": False}
 
 
+AZURE_SECRET = "azure_speech"
+
+
+@route("POST", "/api/settings/azure-key")
+def settings_azure_key_save(query, body):
+    """Store the Azure Speech key encrypted (Windows DPAPI) and wire it to the TTS engine."""
+    root = ROOT
+    key = (body.get("key") or "").strip()
+    if not key:
+        raise ValueError("กรุณาใส่ Speech Key")
+    try:
+        from . import credential_store
+        credential_store.save_secret(AZURE_SECRET, key)
+    except Exception as e:
+        raise ValueError("บันทึก Speech Key ไม่สำเร็จ: %s" % e)
+
+    cfg = load_cfg()
+    cfg.setdefault("tts", {})["azure_key"] = key
+    _write_json(root / "config.json", cfg)
+    return {"ok": True, "connected": True}
+
+
+@route("POST", "/api/settings/azure-key/delete")
+def settings_azure_key_delete(query, body):
+    root = ROOT
+    try:
+        from . import credential_store
+        credential_store.delete_secret(AZURE_SECRET)
+    except Exception as e:
+        raise ValueError("ลบ Speech Key ไม่สำเร็จ: %s" % e)
+    cfg = load_cfg()
+    cfg.setdefault("tts", {})["azure_key"] = ""
+    _write_json(root / "config.json", cfg)
+    return {"ok": True, "connected": False}
+
+
 @route("POST", "/api/settings/test-voice")
 def settings_test_voice(query, body):
     root = ROOT
@@ -1045,8 +1277,14 @@ def settings_test_voice(query, body):
 def settings_test_azure(query, body):
     cfg = load_cfg()
     tts_cfg = cfg.get("tts") or {}
-    key = tts_cfg.get("azure_key") or ""
-    region = tts_cfg.get("azure_region") or ""
+    key = (tts_cfg.get("azure_key") or "").strip()
+    region = (tts_cfg.get("azure_region") or "").strip()
+    if not key:
+        try:
+            from . import credential_store
+            key = credential_store.load_secret(AZURE_SECRET)
+        except Exception:
+            key = ""
     if not key:
         raise ValueError("ยังไม่ได้บันทึก Speech Key")
     try:
@@ -1057,8 +1295,9 @@ def settings_test_azure(query, body):
             "Content-Type": "application/ssml+xml",
         })
         with urllib.request.urlopen(req, timeout=15) as r:
-            token = r.read().decode("utf-8", "ignore")
-        return {"ok": True, "connected": True, "detail": "เชื่อมต่อ Azure Speech สำเร็จ (region %s)" % region}
+            r.read()
+        return {"ok": True, "connected": True,
+                "detail": "เชื่อมต่อ Azure Speech สำเร็จ (region %s)" % region}
     except Exception as e:
         return {"ok": False, "connected": False, "error": str(e)}
 

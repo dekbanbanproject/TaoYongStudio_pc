@@ -1,5 +1,39 @@
-import { invoke } from "@tauri-apps/api/core";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+
+/**
+ * The app normally runs inside Tauri, where every call is proxied through the
+ * Rust bridge to the Python engine. When the UI is opened in a plain browser
+ * (design review / development) it talks to the engine service directly.
+ */
+const IN_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const DEV_ENGINE_URL =
+  (import.meta.env?.VITE_ENGINE_URL as string | undefined) || "http://127.0.0.1:8787";
+const DEV_ENGINE_TOKEN =
+  (import.meta.env?.VITE_ENGINE_TOKEN as string | undefined) || "dev-token";
+
+async function browserRequest(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<any> {
+  const res = await fetch(`${DEV_ENGINE_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-TAOYONG-TOKEN": DEV_ENGINE_TOKEN,
+    },
+    body: body === undefined || body === null ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`คำตอบจาก Engine ไม่ถูกต้อง (${res.status})`);
+  }
+  if (!res.ok) throw new Error(json?.error || `คำขอไม่สำเร็จ (${res.status})`);
+  return json;
+}
 
 /** Every call goes through the Tauri Rust bridge -> local Python engine. */
 export async function apiRequest<T = any>(
@@ -7,6 +41,9 @@ export async function apiRequest<T = any>(
   path: string,
   body?: unknown,
 ): Promise<T> {
+  if (!IN_TAURI) {
+    return (await browserRequest(method, path, body)) as T;
+  }
   const res = await invoke<any>("api_request", { method, path, body: body ?? null });
   if (res && typeof res === "object" && res.ok === false) {
     throw new Error(res.error || "คำขอไม่สำเร็จ");
@@ -36,6 +73,7 @@ export function withQuery(path: string, query?: Record<string, unknown>) {
 export function assetUrl(path?: string): string {
   if (!path) return "";
   if (/^(https?:|data:|blob:|asset:)/i.test(path)) return path;
+  if (!IN_TAURI) return "";
   try {
     return convertFileSrc(path);
   } catch {
@@ -43,19 +81,30 @@ export function assetUrl(path?: string): string {
   }
 }
 
-export function openPath(path: string) {
-  return invoke<void>("open_path", { path });
+export async function openPath(path: string) {
+  if (!IN_TAURI) return;
+  await invoke<void>("open_path", { path });
 }
 
-export function revealPath(path: string) {
-  return invoke<void>("reveal_path", { path });
+export async function revealPath(path: string) {
+  if (!IN_TAURI) return;
+  await invoke<void>("reveal_path", { path });
 }
 
-export function engineStatus() {
+export async function engineStatus() {
+  if (!IN_TAURI) {
+    try {
+      await browserRequest("GET", "/api/health");
+      return { running: true };
+    } catch (e: any) {
+      return { running: false, error: e?.message || String(e) };
+    }
+  }
   return invoke<any>("engine_status");
 }
 
-export function engineRestart() {
+export async function engineRestart() {
+  if (!IN_TAURI) return { running: false };
   return invoke<any>("engine_restart");
 }
 

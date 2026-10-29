@@ -43,19 +43,23 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "../../engine/taoyong/**/*",
-      "../../scripts/**/*",
-      "../../plans/**/*",
-      "../../fonts/**/*",
-      "../../nextseller/data/**/*",
-      "../../assets/**/*"
-    ],
+    "resources": {
+      "../../engine/dist/taoyong-engine": "engine/taoyong-engine",
+      "../../engine/taoyong": "engine/taoyong",
+      "../../engine/requirements.txt": "engine/requirements.txt",
+      "../../scripts": "scripts",
+      "../../plans": "plans",
+      "../../output": "output",
+      "../../nextseller/data": "nextseller/data",
+      "../../fonts": "fonts",
+      "../../assets": "assets",
+      "../../config.example.json": "config.example.json"
+    },
     "windows": {
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,
-        "shortcutName": "TaoYongStudio"
+        "startMenuFolder": "TaoYongStudio"
       }
     },
     "copyright": "TaoYongStudio",

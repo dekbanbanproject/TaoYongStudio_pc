@@ -122,3 +122,101 @@ def delete_key(path=KEY_FILE):
 
 def has_key():
     return bool(load_key())
+
+
+# --------------------------------------------------------------------------
+# Named secrets (Gemini, Azure Speech, ...)
+#
+# Stored encrypted with Windows DPAPI in secrets/<name>.dpapi and mirrored
+# into config.json (git-ignored) so the value survives a restart. The plain
+# text file fallback used for Gemini is NOT used for named secrets, so those
+# never hit the disk unencrypted.
+# --------------------------------------------------------------------------
+
+SECRETS_DIR = ROOT / "secrets"
+
+
+def _secret_paths(name: str):
+    return (
+        SECRETS_DIR / ("%s.dpapi" % name),
+        SECRETS_DIR / ("%s.txt" % name),
+    )
+
+
+def save_secret(name: str, key: str) -> str:
+    """Encrypt and store a named secret. Returns the stored name."""
+    key = str(key).strip()
+    if not key:
+        raise ValueError("กรุณาใส่ค่า key")
+
+    dpapi_path, txt_path = _secret_paths(name)
+    dpapi_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if os.name == "nt":
+        dpapi_path.write_bytes(_crypt(key.encode("utf-8"), True))
+    else:
+        # Non-Windows fallback: keep it out of the way but still recoverable.
+        txt_path.write_text(key, encoding="utf-8")
+        try:
+            dpapi_path.unlink()
+        except OSError:
+            pass
+
+    try:
+        cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8")) if CONFIG_FILE.exists() else {}
+        cfg.setdefault("api_keys", {})[name] = key
+        CONFIG_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+    return name
+
+
+def load_secret(name: str) -> str:
+    dpapi_path, txt_path = _secret_paths(name)
+
+    if dpapi_path.exists() and os.name == "nt":
+        try:
+            return _crypt(dpapi_path.read_bytes(), False).decode("utf-8").strip()
+        except Exception:
+            pass
+    if txt_path.exists():
+        try:
+            return txt_path.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+    if CONFIG_FILE.exists():
+        try:
+            cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            v = (cfg.get("api_keys") or {}).get(name)
+            if v and str(v).strip():
+                return str(v).strip()
+        except Exception:
+            pass
+    return ""
+
+
+def delete_secret(name: str) -> bool:
+    dpapi_path, txt_path = _secret_paths(name)
+    removed = False
+    for p in (dpapi_path, txt_path):
+        try:
+            if p.exists():
+                p.unlink()
+                removed = True
+        except OSError:
+            pass
+    if CONFIG_FILE.exists():
+        try:
+            cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            if "api_keys" in cfg and name in cfg["api_keys"]:
+                del cfg["api_keys"][name]
+                CONFIG_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+                removed = True
+        except Exception:
+            pass
+    return removed
+
+
+def has_secret(name: str) -> bool:
+    return bool(load_secret(name))
+
