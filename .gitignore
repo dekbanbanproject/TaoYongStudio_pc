@@ -1,0 +1,27 @@
+# --- Python engine ---
+engine/.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# --- Node / frontend ---
+node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/schemas/
+
+# --- runtime data (machine specific) ---
+config.json
+secrets/
+cache/
+logs/
+output/
+*.log
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop/.tmp_setup/
+.tmp_setup/
+_v1_backup/

@@ -1,0 +1,9 @@
+{
+  "id": "REQ-20261024-074755",
+  "status": "done",
+  "script_ids": [
+    "ep-fish-friends-01"
+  ],
+  "compilation_id": null,
+  "message": "นำเข้าจาก Gemini Pro"
+}

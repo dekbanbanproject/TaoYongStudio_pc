@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261025-202126",
+  "created": "2026-10-25T20:21:26",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i22",
+      "genre": "นิทานก่อนนอน",
+      "title": "ลูกโป่งสีชมพูอยากไปหาพระจันทร์",
+      "summary": "ลูกโป่งลอยขึ้นฟ้าแล้วกลับมานอนข้างเตียง",
+      "characters": [
+        "chick",
+        "cat"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "vertical",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "gemini_api"
+}

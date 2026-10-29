@@ -1,0 +1,162 @@
+{
+  "id": "ep017-rainbow-colors-review",
+  "title": "สายรุ้งหลากสี ทบทวนสีหลักและสีผสม",
+  "description": "ทบทวนสีหลัก แดง เหลือง น้ำเงิน และสีที่ได้จากการผสม ส้ม เขียว ม่วง ด้วยหัวใจหลากสี",
+  "tags": [
+    "ผสมสี",
+    "สีรุ้ง",
+    "เรียนรู้สี",
+    "การ์ตูนเด็ก",
+    "สีและรูปทรง"
+  ],
+  "genre": "สีและรูปทรง",
+  "formats": [
+    "horizontal"
+  ],
+  "request_id": "REQ-20261023-110839",
+  "characters": [
+    "bunny",
+    "bear",
+    "chick",
+    "cat"
+  ],
+  "music_seed": 1705,
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "chick",
+          "say": "ดูสิ บนฟ้า มีสายรุ้งด้วย",
+          "action": "point",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "สายรุ้ง มีหลายสีเลยนะ"
+        },
+        {
+          "who": "bear",
+          "say": "สีหลัก มีสามสี",
+          "card": "สีหลัก",
+          "action": "point"
+        },
+        {
+          "who": "cat",
+          "say": "สีแดง",
+          "card": "แดง",
+          "card_color": "red",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "red"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "สีเหลือง",
+          "card": "เหลือง",
+          "card_color": "#E0A800",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "สีน้ำเงิน",
+          "card": "น้ำเงิน",
+          "card_color": "blue",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "blue"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "พูดตามนะ แดง เหลือง น้ำเงิน",
+          "card": "",
+          "items": null
+        },
+        {
+          "pause": 2.0
+        }
+      ]
+    },
+    {
+      "background": "beach",
+      "beats": [
+        {
+          "who": "cat",
+          "say": "แล้ว สีที่ได้จากการผสม ล่ะ?",
+          "card": "สีผสม",
+          "action": "point"
+        },
+        {
+          "who": "chick",
+          "say": "แดง กับ เหลือง ได้สีส้ม",
+          "card": "ส้ม",
+          "card_color": "orange",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "น้ำเงิน กับ เหลือง ได้สีเขียว",
+          "card": "เขียว",
+          "card_color": "green",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "green"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "แดง กับ น้ำเงิน ได้สีม่วง",
+          "card": "ม่วง",
+          "card_color": "purple",
+          "items": {
+            "kind": "heart",
+            "count": 1,
+            "color": "purple"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "รวมกันแล้ว มีกี่สีนะ? ลองนับดู",
+          "card": "",
+          "items": null,
+          "action": "point"
+        },
+        {
+          "pause": 2.0
+        },
+        {
+          "who": "chick",
+          "say": "หกสี ถูกต้องแล้ว",
+          "card": "6",
+          "action": "cheer",
+          "react": "cheer"
+        },
+        {
+          "who": "bunny",
+          "say": "สีสวยๆ อยู่รอบตัวเราเต็มไปหมด",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "ไว้มาเล่นผสมสีกันใหม่นะ",
+          "action": "wave",
+          "react": "wave"
+        }
+      ]
+    }
+  ]
+}

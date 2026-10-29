@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261024-074755",
+  "created": "2026-10-24T07:47:55",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i22",
+      "genre": "นิทานก่อนนอน",
+      "title": "ปลาน้อยหาเพื่อน",
+      "summary": "ปลาน้อยสีส้มว่ายไปเจอเพื่อนปลาหลายสี",
+      "characters": [
+        "cat",
+        "chick"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "both",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "gemini_api"
+}

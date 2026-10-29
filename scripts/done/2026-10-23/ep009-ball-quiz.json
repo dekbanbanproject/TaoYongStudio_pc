@@ -1,0 +1,69 @@
+{
+  "id": "ep009-ball-quiz",
+  "title": "ทายสิ! มีลูกบอลกี่ลูก เกมนับเลขสำหรับเด็ก",
+  "description": "เกมนับเลขสนุกๆ ให้เด็กๆ ตอบคำถามก่อนเฉลย ฝึกนับและสังเกต",
+  "tags": [
+    "นับเลข",
+    "เกมเด็ก",
+    "ทายปัญหา",
+    "การ์ตูนเด็ก"
+  ],
+  "characters": [
+    "chick",
+    "bear"
+  ],
+  "music_seed": 907,
+  "scenes": [
+    {
+      "background": "beach",
+      "beats": [
+        {
+          "who": "chick",
+          "say": "มาเล่นเกมทายกันนะ",
+          "action": "jump",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "มีลูกบอลกี่ลูกเอ่ย?",
+          "items": {
+            "kind": "ball",
+            "count": 3,
+            "color": "red"
+          },
+          "action": "point"
+        },
+        {
+          "pause": 2.2
+        },
+        {
+          "who": "chick",
+          "say": "สามลูก ถูกต้อง",
+          "card": "3",
+          "action": "cheer"
+        },
+        {
+          "who": "bear",
+          "say": "แล้วตอนนี้ มีกี่ลูกเอ่ย?",
+          "card": "",
+          "items": {
+            "kind": "ball",
+            "count": 5,
+            "color": "blue"
+          },
+          "action": "point"
+        },
+        {
+          "pause": 2.2
+        },
+        {
+          "who": "chick",
+          "say": "ห้าลูก เก่งมากเลย",
+          "card": "5",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

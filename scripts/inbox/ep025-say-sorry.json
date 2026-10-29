@@ -1,0 +1,109 @@
+{
+  "id": "ep025-say-sorry",
+  "title": "พูดขอโทษ เมื่อเราทำผิด เด็กดีมีมารยาท",
+  "description": "โกโก้เผลอทำดอกไม้ของปุยฝ้ายล้ม จึงพูดขอโทษและช่วยเก็บ สอนเรื่องการขอโทษและการให้อภัย",
+  "tags": [
+    "มารยาท",
+    "ขอโทษ",
+    "นิสัยดี",
+    "การ์ตูนเด็ก"
+  ],
+  "genre": "มารยาทและนิสัยดี",
+  "characters": [
+    "bear",
+    "bunny"
+  ],
+  "music_seed": 2504,
+  "scenes": [
+    {
+      "background": "meadow",
+      "cast": [
+        "bear",
+        "bunny"
+      ],
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "ฉันเก็บดอกไม้ ได้ห้าดอกแล้ว",
+          "action": "happy",
+          "items": {
+            "kind": "flower",
+            "count": 5,
+            "color": "pink"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "โกโก้วิ่งมา แล้วเผลอชนดอกไม้ล้ม",
+          "items": {
+            "kind": "flower",
+            "count": 2,
+            "color": "pink"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "โอ๊ะ ดอกไม้ของฉัน",
+          "action": "talk"
+        },
+        {
+          "who": "narrator",
+          "say": "โกโก้ควรพูดว่าอะไรดีนะ"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bear",
+          "say": "ขอโทษนะ ปุยฝ้าย ฉันไม่ทันระวัง",
+          "action": "talk",
+          "card": "ขอโทษนะ"
+        },
+        {
+          "who": "bear",
+          "say": "ฉันช่วยเก็บ ให้นะ",
+          "action": "point",
+          "items": {
+            "kind": "flower",
+            "count": 5,
+            "color": "pink"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "ไม่เป็นไรจ้ะ ขอบใจนะ",
+          "action": "happy",
+          "react": "happy",
+          "card": "ไม่เป็นไร"
+        },
+        {
+          "who": "narrator",
+          "say": "เมื่อทำผิด เราพูดว่า ขอโทษ",
+          "card": "ขอโทษ"
+        },
+        {
+          "who": "narrator",
+          "say": "เมื่อเพื่อนขอโทษ เราตอบว่า ไม่เป็นไร",
+          "card": "ไม่เป็นไร"
+        },
+        {
+          "who": "bear",
+          "say": "ลองพูดตามนะ ขอโทษนะ",
+          "action": "talk",
+          "card": "ขอโทษนะ"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "bunny",
+          "say": "เก่งมาก เราเป็นเพื่อนกันเหมือนเดิม",
+          "action": "dance",
+          "react": "dance",
+          "card": "",
+          "items": null
+        }
+      ]
+    }
+  ]
+}

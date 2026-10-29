@@ -1,0 +1,160 @@
+{
+  "id": "ep019-sort-colors-into-cups",
+  "title": "แยกสีให้ถูกถ้วย! นับและแยกสีกับปุยฝ้ายและโกโก้",
+  "description": "ฝึกแยกสี แดง เหลือง น้ำเงิน เขียว และนับ 1 ถึง 3 ไปพร้อมกับปุยฝ้ายและโกโก้",
+  "tags": [
+    "แยกสี",
+    "นับเลข",
+    "เรียนรู้สี",
+    "การ์ตูนเด็ก",
+    "มอนเตสซอรี่"
+  ],
+  "genre": "สีและรูปทรง",
+  "formats": [
+    "vertical"
+  ],
+  "characters": [
+    "bunny",
+    "bear"
+  ],
+  "music_seed": 1907,
+  "shopee": {
+    "product_name": "ของเล่นแยกสี + ถ้วย + ที่หนีบ ฝึกนับเลข รูปสัตว์",
+    "product_link": "https://s.shopee.co.th/gR47c4BGQ",
+    "highlight": "ครบชุด ฝึกแยกสี นับเลข และกล้ามเนื้อมือ",
+    "caption": "ของเล่นแยกสี + ถ้วย + ที่หนีบ ครบชุด\nฝึกแยกสี นับเลข และกล้ามเนื้อมือเล็ก\nชวนลูกเรียนรู้ไปกับการ์ตูน \"แยกสีให้ถูกถ้วย! นับและแยกสีกับปุยฝ้ายและโกโก้\"\nเหมาะสำหรับคุณพ่อคุณแม่ที่อยากให้ลูกเล่นและเรียนรู้ที่บ้าน\n\nดูรายละเอียดและสั่งซื้อ: https://s.shopee.co.th/gR47c4BGQ\n\n#ของเล่นแยกสี #ของเล่นเสริมพัฒนาการ #มอนเตสซอรี่ #ฝึกนับเลข #คุณแม่มือใหม่ #ShopeeVideo"
+  },
+  "scenes": [
+    {
+      "background": "classroom",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "สวัสดีจ้ะ วันนี้มาเล่นแยกสีกันนะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "สีแดง ต้องไปอยู่กับสีแดง",
+          "card": "แดง",
+          "card_color": "red",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "red"
+          },
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "นับปลาสีแดงกัน หนึ่ง สอง สาม",
+          "card": "3",
+          "items": {
+            "kind": "fish",
+            "count": 3,
+            "color": "red"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "สีเหลือง ไปอยู่กับสีเหลือง",
+          "card": "เหลือง",
+          "card_color": "#E0A800",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "yellow"
+          },
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "นับปลาสีเหลือง หนึ่ง สอง",
+          "card": "2",
+          "items": {
+            "kind": "fish",
+            "count": 2,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "สีน้ำเงิน ไปอยู่กับสีน้ำเงิน",
+          "card": "น้ำเงิน",
+          "card_color": "blue",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "blue"
+          },
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "ปลาสีน้ำเงิน มีกี่ตัวเอ่ย?",
+          "items": {
+            "kind": "fish",
+            "count": 4,
+            "color": "blue"
+          },
+          "card": ""
+        },
+        {
+          "pause": 2.0
+        },
+        {
+          "who": "bear",
+          "say": "สี่ตัว เก่งมาก",
+          "card": "4",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    },
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "ทีนี้ สีเขียว บ้าง",
+          "card": "เขียว",
+          "card_color": "green",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "green"
+          }
+        },
+        {
+          "who": "bear",
+          "say": "สีเขียว ไปอยู่ถ้วยสีอะไรนะ?",
+          "action": "point"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "bunny",
+          "say": "ถ้วยสีเขียว ถูกต้อง",
+          "card": "เขียว + เขียว",
+          "card_color": "green",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "แยกสีครบ สี่สีแล้ว",
+          "card": "แดง เหลือง น้ำเงิน เขียว",
+          "items": null
+        },
+        {
+          "who": "bunny",
+          "say": "ไว้มาเล่นแยกสีกันใหม่นะ",
+          "action": "dance",
+          "react": "dance"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "id": "ep022-countdown-10-to-1-stars",
+  "title": "นับถอยหลัง 10 ถึง 1 กับดาวระยิบระยับ",
+  "description": "เจี๊ยบและมิวมิวชวนเด็กๆ นับถอยหลังจากสิบถึงหนึ่ง ดาวค่อยๆ ลดลงทีละดวง",
+  "tags": [
+    "นับเลข",
+    "นับถอยหลัง",
+    "การ์ตูนเด็ก",
+    "เด็กอนุบาล"
+  ],
+  "genre": "นับเลข",
+  "characters": [
+    "chick",
+    "cat"
+  ],
+  "music_seed": 2201,
+  "scenes": [
+    {
+      "background": "night",
+      "cast": [
+        "chick",
+        "cat"
+      ],
+      "beats": [
+        {
+          "who": "chick",
+          "say": "สวัสดีจ้ะ เด็กๆ ทุกคน",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "cat",
+          "say": "คืนนี้ มีดาวสิบดวง บนฟ้า",
+          "action": "point",
+          "card": "10",
+          "items": {
+            "kind": "star",
+            "count": 10,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "มานับถอยหลัง ด้วยกันนะ",
+          "action": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "เก้า",
+          "card": "9",
+          "items": {
+            "kind": "star",
+            "count": 9,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "แปด",
+          "card": "8",
+          "items": {
+            "kind": "star",
+            "count": 8,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "เจ็ด",
+          "card": "7",
+          "items": {
+            "kind": "star",
+            "count": 7,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "หก",
+          "card": "6",
+          "items": {
+            "kind": "star",
+            "count": 6,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "ห้า",
+          "card": "5",
+          "items": {
+            "kind": "star",
+            "count": 5,
+            "color": "yellow"
+          }
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "cat",
+          "say": "สี่",
+          "card": "4",
+          "items": {
+            "kind": "star",
+            "count": 4,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "สาม",
+          "card": "3",
+          "items": {
+            "kind": "star",
+            "count": 3,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "สอง",
+          "card": "2",
+          "items": {
+            "kind": "star",
+            "count": 2,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "หนึ่ง",
+          "card": "1",
+          "items": {
+            "kind": "star",
+            "count": 1,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "ดาวดวงสุดท้าย เหลือกี่ดวงนะ",
+          "card": "?"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "chick",
+          "say": "หนึ่งดวงจ้ะ เก่งมาก",
+          "card": "1",
+          "action": "cheer",
+          "react": "cheer"
+        },
+        {
+          "who": "cat",
+          "say": "นับถอยหลัง จากสิบ ถึงหนึ่ง ได้แล้ว",
+          "card": "",
+          "items": null,
+          "action": "dance",
+          "react": "dance"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "id": "ep006-carrots-for-bunny",
+  "title": "แครอทของปุยฝ้าย นับแครอทกันเถอะ",
+  "description": "ช่วยกระต่ายปุยฝ้ายนับแครอท 1 ถึง 4 และเรียนรู้การแบ่งปันกับเพื่อน",
+  "tags": [
+    "นับเลข",
+    "แบ่งปัน",
+    "การ์ตูนเด็ก",
+    "กระต่าย"
+  ],
+  "characters": [
+    "bunny",
+    "chick"
+  ],
+  "music_seed": 604,
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "ปุยฝ้ายชอบกินแครอทที่สุดเลย",
+          "action": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "มานับแครอทกันนะ",
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "หนึ่ง",
+          "card": "1",
+          "items": {
+            "kind": "carrot",
+            "count": 1
+          }
+        },
+        {
+          "who": "chick",
+          "say": "สอง",
+          "card": "2",
+          "items": {
+            "kind": "carrot",
+            "count": 2
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "สาม",
+          "card": "3",
+          "items": {
+            "kind": "carrot",
+            "count": 3
+          }
+        },
+        {
+          "who": "chick",
+          "say": "สี่",
+          "card": "4",
+          "items": {
+            "kind": "carrot",
+            "count": 4
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "ปุยฝ้ายแบ่งให้เจี๊ยบสองแท่งนะ",
+          "card": "",
+          "items": {
+            "kind": "carrot",
+            "count": 2
+          },
+          "action": "point"
+        },
+        {
+          "who": "chick",
+          "say": "ขอบคุณจ้ะ ปุยฝ้ายใจดีจัง",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "แบ่งปันกัน สนุกกว่าเยอะเลย",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

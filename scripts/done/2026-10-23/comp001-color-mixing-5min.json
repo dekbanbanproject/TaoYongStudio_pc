@@ -1,0 +1,26 @@
+{
+  "id": "comp001-color-mixing-5min",
+  "title": "ผสมสีมหัศจรรย์ รวม 5 นาที แดง เหลือง น้ำเงิน ได้สีอะไร",
+  "description": "รวมตอนผสมสีสำหรับเด็กเล็ก เรียนรู้สีส้ม สีเขียว สีม่วง พร้อมเกมทายสี",
+  "tags": [
+    "ผสมสี",
+    "เรียนรู้สี",
+    "การ์ตูนเด็ก",
+    "รวมคลิป",
+    "อนุบาล"
+  ],
+  "target_minutes": 5,
+  "format": "horizontal",
+  "episodes": [
+    "ep013-mix-red-yellow-orange",
+    "ep014-mix-blue-yellow-green",
+    "ep015-mix-red-blue-purple",
+    "ep016-color-mixing-quiz",
+    "ep017-rainbow-colors-review",
+    "ep018-find-mixed-colors-around"
+  ],
+  "fill_genre": [
+    "สีและรูปทรง"
+  ],
+  "request_id": "REQ-20261023-110839"
+}

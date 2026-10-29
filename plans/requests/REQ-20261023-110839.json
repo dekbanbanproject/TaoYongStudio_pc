@@ -1,0 +1,22 @@
+{
+  "id": "REQ-20261023-110839",
+  "created": "2026-10-23T11:08:39",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i06",
+      "genre": "สีและรูปทรง",
+      "title": "ผสมสีมหัศจรรย์ แดง + เหลือง = ส้ม",
+      "summary": "ลูกโป่งสองสีมารวมกันกลายเป็นสีใหม่",
+      "characters": [
+        "cat",
+        "bear"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 300,
+  "format": "horizontal",
+  "count_per_item": 1,
+  "note": ""
+}

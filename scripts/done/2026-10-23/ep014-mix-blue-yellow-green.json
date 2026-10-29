@@ -1,0 +1,159 @@
+{
+  "id": "ep014-mix-blue-yellow-green",
+  "title": "ผสมสีมหัศจรรย์ น้ำเงิน + เหลือง = สีเขียว",
+  "description": "สีน้ำเงินผสมสีเหลือง ได้สีอะไรเอ่ย? เรียนรู้การผสมสีกับปุยฝ้ายและเจี๊ยบ",
+  "tags": [
+    "ผสมสี",
+    "เรียนรู้สี",
+    "การ์ตูนเด็ก",
+    "สีและรูปทรง",
+    "อนุบาล"
+  ],
+  "genre": "สีและรูปทรง",
+  "formats": [
+    "horizontal"
+  ],
+  "request_id": "REQ-20261023-110839",
+  "characters": [
+    "bunny",
+    "chick"
+  ],
+  "music_seed": 1402,
+  "scenes": [
+    {
+      "background": "classroom",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "สวัสดีจ้ะ เพื่อนๆ",
+          "action": "wave",
+          "react": "wave"
+        },
+        {
+          "who": "chick",
+          "say": "วันนี้ เรามาเล่น ผสมสีกันนะ",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "เรามีลูกโป่ง น้ำเงิน",
+          "card": "สีน้ำเงิน",
+          "card_color": "blue",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "blue"
+          },
+          "action": "point"
+        },
+        {
+          "who": "chick",
+          "say": "พูดตามนะ สีน้ำเงิน"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "chick",
+          "say": "แล้วก็มีลูกโป่ง เหลือง",
+          "card": "สีเหลือง",
+          "card_color": "#E0A800",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "yellow"
+          },
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "พูดตามนะ สีเหลือง"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "bunny",
+          "say": "ถ้าเอา สีน้ำเงิน มาผสมกับ สีเหลือง",
+          "card": "น้ำเงิน + เหลือง",
+          "items": null
+        },
+        {
+          "who": "chick",
+          "say": "จะได้สีอะไรนะ? ลองทายดูสิ",
+          "action": "point"
+        },
+        {
+          "pause": 2.0
+        }
+      ]
+    },
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "หนึ่ง สอง สาม ผสมสี!",
+          "action": "jump",
+          "react": "jump"
+        },
+        {
+          "who": "chick",
+          "say": "ว้าว ได้ สีเขียว",
+          "card": "สีเขียว",
+          "card_color": "green",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "green"
+          },
+          "action": "cheer",
+          "react": "cheer"
+        },
+        {
+          "who": "bunny",
+          "say": "น้ำเงิน บวก เหลือง ได้ เขียว",
+          "card": "น้ำเงิน + เหลือง = เขียว",
+          "card_color": "green"
+        },
+        {
+          "who": "chick",
+          "say": "มีอะไรอีกบ้าง ที่เป็นสีเขียว นะ?",
+          "action": "point"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "bunny",
+          "say": "หัวใจ ก็เป็นสีเขียวได้นะ",
+          "items": {
+            "kind": "heart",
+            "count": 3,
+            "color": "green"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "นับกันนะ หนึ่ง สอง สาม",
+          "card": "3"
+        },
+        {
+          "who": "bunny",
+          "say": "เก่งมากเลย จำไว้นะ",
+          "card": "น้ำเงิน + เหลือง = เขียว",
+          "card_color": "green",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "น้ำเงิน ผสม เหลือง ได้สีเขียว",
+          "action": "dance",
+          "react": "dance"
+        }
+      ]
+    }
+  ]
+}

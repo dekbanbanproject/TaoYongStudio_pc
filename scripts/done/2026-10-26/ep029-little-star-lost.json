@@ -1,0 +1,206 @@
+{
+  "id": "ep029-little-star-lost",
+  "title": "นิทานก่อนนอน ดาวน้อยหลงทาง กลับบ้านบนฟ้า",
+  "description": "ดาวน้อยดวงหนึ่งหลงลงมาที่ทุ่งหญ้า ปุยฝ้าย โกโก้ และเจี๊ยบช่วยกันพาดาวน้อยกลับไปหาเพื่อนบนฟ้า นิทานอบอุ่นก่อนนอน",
+  "tags": [
+    "นิทานก่อนนอน",
+    "นิทานเด็ก",
+    "การ์ตูนเด็ก",
+    "กล่อมนอน"
+  ],
+  "genre": "นิทานก่อนนอน",
+  "characters": [
+    "bunny",
+    "bear",
+    "chick"
+  ],
+  "formats": [
+    "horizontal"
+  ],
+  "music_seed": 2908,
+  "scenes": [
+    {
+      "background": "night",
+      "cast": [
+        "bunny",
+        "bear",
+        "chick"
+      ],
+      "beats": [
+        {
+          "who": "narrator",
+          "say": "กาลครั้งหนึ่ง ในคืนที่ฟ้าใสๆ",
+          "items": {
+            "kind": "star",
+            "count": 5,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "มีดาวห้าดวง ส่องแสงระยิบระยับ"
+        },
+        {
+          "who": "narrator",
+          "say": "ดาวน้อยดวงหนึ่ง เผลอลอยต่ำลงมา",
+          "items": {
+            "kind": "star",
+            "count": 4,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "ลงมาจนถึง ทุ่งหญ้าเงียบๆ"
+        },
+        {
+          "who": "chick",
+          "say": "ดูนั่นสิ มีแสงเล็กๆ ในหญ้า",
+          "action": "point",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "ดาวน้อยนี่เอง สวัสดีจ้ะ",
+          "action": "wave"
+        },
+        {
+          "who": "bear",
+          "say": "ดาวน้อยดูเหงาจัง คิดถึงเพื่อนแน่เลย",
+          "action": "talk"
+        },
+        {
+          "who": "narrator",
+          "say": "ดาวน้อยอยากกลับบ้าน บนฟ้า"
+        },
+        {
+          "who": "chick",
+          "say": "เราช่วยกันนะ ดาวน้อย",
+          "action": "cheer",
+          "react": "cheer"
+        },
+        {
+          "who": "narrator",
+          "say": "เด็กๆ คิดว่า เพื่อนๆ จะช่วยอย่างไรดี"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bunny",
+          "say": "เราร้องเรียกเพื่อนดาว เบาๆ กันไหม",
+          "action": "talk"
+        },
+        {
+          "who": "bear",
+          "say": "ดาวจ๋า ดาวจ๋า ช่วยส่องทางหน่อย",
+          "action": "talk"
+        },
+        {
+          "who": "narrator",
+          "say": "ดาวสี่ดวงบนฟ้า ส่องแสงสว่างขึ้น"
+        },
+        {
+          "who": "chick",
+          "say": "เห็นไหม เพื่อนๆ กำลังรออยู่",
+          "action": "point"
+        },
+        {
+          "who": "narrator",
+          "say": "ดาวน้อยค่อยๆ ลอยขึ้น ทีละนิด"
+        },
+        {
+          "who": "bunny",
+          "say": "ลอยขึ้นไปนะ ไม่ต้องกลัว",
+          "action": "wave",
+          "react": "wave"
+        },
+        {
+          "who": "narrator",
+          "say": "มานับดาวกันนะ ตอนนี้มีกี่ดวง",
+          "items": {
+            "kind": "star",
+            "count": 5,
+            "color": "yellow"
+          }
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bear",
+          "say": "ห้าดวงจ้ะ ดาวน้อยกลับบ้านแล้ว",
+          "action": "happy",
+          "react": "happy",
+          "card": "5"
+        },
+        {
+          "who": "narrator",
+          "say": "ดาวน้อยกะพริบแสง เหมือนพูดว่าขอบคุณ",
+          "card": ""
+        }
+      ]
+    },
+    {
+      "background": "bedroom",
+      "cast": [
+        "bunny",
+        "bear",
+        "chick"
+      ],
+      "beats": [
+        {
+          "who": "narrator",
+          "say": "เพื่อนทั้งสาม กลับมาถึงห้องนอน",
+          "items": null
+        },
+        {
+          "who": "bunny",
+          "say": "วันนี้ เราได้ช่วยเพื่อนด้วยนะ",
+          "action": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "ช่วยเพื่อน แล้วใจอุ่นจังเลย",
+          "action": "talk"
+        },
+        {
+          "who": "chick",
+          "say": "ดาวน้อย จะส่องแสงให้เราทุกคืน",
+          "action": "talk"
+        },
+        {
+          "who": "narrator",
+          "say": "ได้เวลาห่มผ้า นอนให้สบาย"
+        },
+        {
+          "who": "narrator",
+          "say": "หายใจเข้า ช้าๆ หายใจออก ช้าๆ"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bunny",
+          "say": "ฝันดีนะ โกโก้",
+          "action": "wave"
+        },
+        {
+          "who": "bear",
+          "say": "ฝันดีนะ ปุยฝ้าย ฝันดีนะ เจี๊ยบ",
+          "action": "wave"
+        },
+        {
+          "who": "chick",
+          "say": "ฝันดีนะ เด็กๆ ทุกคน",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "narrator",
+          "say": "หลับตา แล้วฝันถึงดาวน้อยนะจ๊ะ"
+        }
+      ]
+    }
+  ]
+}

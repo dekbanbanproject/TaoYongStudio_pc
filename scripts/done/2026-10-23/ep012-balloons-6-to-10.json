@@ -1,0 +1,91 @@
+{
+  "id": "ep012-balloons-6-to-10",
+  "title": "นับลูกโป่ง 6 ถึง 10 นับต่อได้ไหมนะ",
+  "description": "ฝึกนับเลขต่อจาก 5 ไปจนถึง 10 ด้วยลูกโป่งหลากสี",
+  "tags": [
+    "นับเลข",
+    "นับ 1-10",
+    "ลูกโป่ง",
+    "การ์ตูนเด็ก"
+  ],
+  "characters": [
+    "bunny",
+    "chick"
+  ],
+  "music_seed": 1210,
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "chick",
+          "say": "มีลูกโป่งห้าลูกแล้ว นับต่อกันนะ",
+          "card": "5",
+          "items": {
+            "kind": "balloon",
+            "count": 5,
+            "color": "red"
+          },
+          "action": "point"
+        },
+        {
+          "who": "bunny",
+          "say": "หก",
+          "card": "6",
+          "items": {
+            "kind": "balloon",
+            "count": 6,
+            "color": "red"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "เจ็ด",
+          "card": "7",
+          "items": {
+            "kind": "balloon",
+            "count": 7,
+            "color": "red"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "แปด",
+          "card": "8",
+          "items": {
+            "kind": "balloon",
+            "count": 8,
+            "color": "red"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "เก้า",
+          "card": "9",
+          "items": {
+            "kind": "balloon",
+            "count": 9,
+            "color": "red"
+          }
+        },
+        {
+          "who": "bunny",
+          "say": "สิบ",
+          "card": "10",
+          "items": {
+            "kind": "balloon",
+            "count": 10,
+            "color": "red"
+          },
+          "action": "jump"
+        },
+        {
+          "who": "chick",
+          "say": "เย้ ลูกโป่งสิบลูกแล้ว",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

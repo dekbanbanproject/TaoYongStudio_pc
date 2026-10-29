@@ -1,0 +1,94 @@
+{
+  "id": "ep032-ai-robot-clean",
+  "title": "หุ่นยนต์ AI ช่วยแยกขยะ กับโกโก้และปุยฝ้าย",
+  "description": "โกโก้และปุยฝ้ายชวนหุ่นยนต์ AI แยกขยะรีไซเคิล ช่วยให้โลกของเราสะอาดสดใส",
+  "tags": [
+    "AI",
+    "ปัญญาประดิษฐ์",
+    "หุ่นยนต์",
+    "การ์ตูนเด็ก",
+    "แยกขยะ"
+  ],
+  "genre": "AI",
+  "characters": [
+    "bear",
+    "bunny"
+  ],
+  "music_seed": 3202,
+  "scenes": [
+    {
+      "background": "meadow",
+      "cast": [
+        "bear",
+        "bunny"
+      ],
+      "beats": [
+        {
+          "who": "bear",
+          "say": "วันนี้เรามา ช่วยกันเก็บขยะนะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "มีหุ่นยนต์ AI มาช่วยเราด้วยจ้ะ",
+          "action": "jump",
+          "card": "AI หุ่นยนต์"
+        },
+        {
+          "who": "narrator",
+          "say": "AI ใช้กล้องมองเพื่อแยกประเภทขยะ"
+        },
+        {
+          "who": "bear",
+          "say": "นี่คือขวดน้ำ ทิ้งถังไหนดีนะ",
+          "action": "point",
+          "card": "ขวดรีไซเคิล",
+          "items": {
+            "kind": "circle",
+            "count": 2,
+            "color": "blue"
+          }
+        },
+        {
+          "pause": 2.0
+        },
+        {
+          "who": "bunny",
+          "say": "AI บอกว่า ทิ้งลงถังรีไซเคิลจ้ะ",
+          "action": "cheer",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "เก่งมากเลย เจ้าหุ่นยนต์ AI",
+          "action": "happy",
+          "card": "โลกสะอาด",
+          "items": {
+            "kind": "star",
+            "count": 3,
+            "color": "yellow"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "แยกขยะถูกต้อง ช่วยให้โลกของเราน่าอยู่"
+        },
+        {
+          "who": "bunny",
+          "say": "ทุกคนช่วยกันดูแลโลกนะจ๊ะ",
+          "action": "dance",
+          "react": "dance",
+          "card": "",
+          "items": null
+        },
+        {
+          "who": "bear",
+          "say": "บ๊ายบาย แล้วเจอกันใหม่นะ",
+          "action": "wave",
+          "react": "happy"
+        }
+      ]
+    }
+  ]
+}

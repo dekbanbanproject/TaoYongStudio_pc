@@ -1,0 +1,14 @@
+{
+  "id": "REQ-20261023-110839",
+  "status": "done",
+  "script_ids": [
+    "ep013-mix-red-yellow-orange",
+    "ep014-mix-blue-yellow-green",
+    "ep015-mix-red-blue-purple",
+    "ep016-color-mixing-quiz",
+    "ep017-rainbow-colors-review",
+    "ep018-find-mixed-colors-around"
+  ],
+  "compilation_id": "comp001-color-mixing-5min",
+  "message": "เขียน 6 ตอนเรื่องผสมสี รวมเป็นคลิป 5 นาทีหลังสร้างครบ"
+}

@@ -1,0 +1,346 @@
+{
+  "updated": "2026-10-24T09:38:48",
+  "note": "ไอเดียคลิปสินค้าจาก NextsellerAI (ตัดหมวดสุขภาพ ราคาต่ำกว่า 50 บาท และสินค้าที่ SKIP)",
+  "ideas": [
+    {
+      "id": "p001-presenter",
+      "genre": "สินค้า · พรีเซนเตอร์ถือสินค้า",
+      "title": "6 เฉดใหม่ ลอรีอัล ปารีส อินฟอลลิเบิล แลค — ยิ้มสบตาแล้วชูสินค้าใกล้กล้อง",
+      "why": "โครง 8 วินาที: ทัก → ชูสินค้าให้เห็นชัด → ชี้ลงไปที่ลิงก์ | ระวัง: การแข่งขันสูงมากเนื่องจากเป็นแบรนด์ดัง; สีของลิปสติกอาจดูแตกต่างกันไปตามแสงและสีผิวของแต่ละบุคคล",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "cf65d5cd-dfba-4080-808e-1373812f5c0b",
+        "name": "[6 เฉดใหม่!] ลอรีอัล ปารีส อินฟอลลิเบิล แลค รีซิสแทนซ์ ลิปไชน์ติดทน L'Oreal Paris Laque Resistance Lipstick",
+        "category": "Beauty",
+        "price": 399.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztq-mudsazocsn46b5"
+      },
+      "style": "presenter",
+      "prompt_file": "product_prompts/p001-presenter.txt"
+    },
+    {
+      "id": "p002-problem",
+      "genre": "สินค้า · ปัญหา→ทางออก",
+      "title": "แป้งเจ้านาง 10ก. แพคเกจใหม่ - Chaonang Perfect — ภาพปัญหาที่คนเห็นแล้วนึกถึงตัวเอง ใน 2 วินาที",
+      "why": "โครง 8 วินาที: เจอปัญหา → สินค้าเข้ามาแก้ → ชี้ลิงก์ | ระวัง: การแข่งขันในตลาดสูงมาก; ลูกค้าอาจมีเฉดสีผิวที่หลากหลาย ทำให้การเลือกเบอร์แป้งเป็นเรื่องยาก",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "751b1650-5c86-4fb3-85b0-267c34e8693d",
+        "name": "แป้งเจ้านาง 10ก. (แพคเกจใหม่) - Chaonang Perfect Bright UV 2-way Powder Foundation 10g.",
+        "category": "Beauty",
+        "price": 389.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-7rasm-m52tankq6vw765"
+      },
+      "style": "problem",
+      "prompt_file": "product_prompts/p002-problem.txt"
+    },
+    {
+      "id": "p003-unboxing",
+      "genre": "สินค้า · แกะกล่อง",
+      "title": "Laka : Fruity Glam Tint Official Store ️️ — มือแกะกล่อง เสียงกรอบแกรบ",
+      "why": "โครง 8 วินาที: แกะกล่อง → โชว์ตัวสินค้า → ชี้ลิงก์ (ไม่อ้างว่าใช้จริง) | ระวัง: การแข่งขันในตลาดลิปทินต์สูงมาก; เฉดสีอาจเพี้ยนไปตามสีพื้นปากของแต่ละบุคคล ทำให้ลูกค้าคาดหวังผลลัพธ์ไม่ตรงปก",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "967819ef-de39-4d04-93dc-6f31ba70b6b4",
+        "name": "Laka : Fruity Glam Tint [Official Store]️️",
+        "category": "Beauty",
+        "price": 329.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-7rase-m0pjhjgzioqibe"
+      },
+      "style": "unboxing",
+      "prompt_file": "product_prompts/p003-unboxing.txt"
+    },
+    {
+      "id": "p004-asmr",
+      "genre": "สินค้า · ASMR",
+      "title": "Canmake Mermaid Skin Gel UV 40g แคนเมค — ภาพใกล้สินค้า + เสียงเฉพาะตัว",
+      "why": "โครง 8 วินาที: ภาพใกล้ + เสียง → โชว์รายละเอียด → ลิงก์ | ระวัง: การแข่งขันในตลาดกันแดดสูงมาก; กำไรต่อชิ้นอาจไม่สูงมากหากค่าคอมมิชชั่นไม่ดี",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "2460bac9-889b-4598-bf66-4e328f68bccd",
+        "name": "Canmake Mermaid Skin Gel UV 40g แคนเมค ครีมกันแดดเนื้อเจล",
+        "category": "Beauty",
+        "price": 291.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/sg-11134201-822x6-mo6s7mmgc8w657"
+      },
+      "style": "asmr",
+      "prompt_file": "product_prompts/p004-asmr.txt"
+    },
+    {
+      "id": "p005-cartoon",
+      "genre": "สินค้า · การ์ตูน/3D",
+      "title": "ไลโอ แชมพูปิดผมขาว - Hair Color Shampoo — ตัวละครการ์ตูนน่ารักทักก่อน",
+      "why": "โครง 8 วินาที: ตัวละครทัก → ใช้/ชูสินค้า → ชี้ลิงก์ | ระวัง: อาจมีอาการแพ้สารเคมีในผู้ใช้บางราย; การแข่งขันสูงในหมวดแชมพูปิดผมขาว",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "80777e30-8773-4c2e-b745-d4f9ff5b26d0",
+        "name": "ไลโอ แชมพูปิดผมขาว - Hair Color Shampoo ปิดผมขาวสนิทใน 10 นาที กลิ่นไม่ฉุน (1 กล่อง / 6 ซอง)",
+        "category": "Beauty",
+        "price": 289.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-7rasg-m70pf7ifxiif70"
+      },
+      "style": "cartoon",
+      "prompt_file": "product_prompts/p005-cartoon.txt"
+    },
+    {
+      "id": "p006-presenter",
+      "genre": "สินค้า · พรีเซนเตอร์ถือสินค้า",
+      "title": "20ลิตร Kasty 20L ทรายแมวเต้าหู้ธรรมชาติ ขนาด 20 — ยิ้มสบตาแล้วชูสินค้าใกล้กล้อง",
+      "why": "โครง 8 วินาที: ทัก → ชูสินค้าให้เห็นชัด → ชี้ลงไปที่ลิงก์ | ระวัง: ค่าขนส่งอาจสูงเนื่องจากสินค้ามีน้ำหนักมาก; กำไรต่อหน่วยอาจไม่สูงมากเมื่อเทียบกับความหนักของสินค้า",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "e1c0ebc6-605e-4813-8b6b-14108f35a247",
+        "name": "*20ลิตร* Kasty 20L ทรายแมวเต้าหู้ธรรมชาติ ขนาด 20 ลิตร",
+        "category": "Pets",
+        "price": 537.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-7rasf-m70aqgfa52pj0d"
+      },
+      "style": "presenter",
+      "prompt_file": "product_prompts/p006-presenter.txt"
+    },
+    {
+      "id": "p007-problem",
+      "genre": "สินค้า · ปัญหา→ทางออก",
+      "title": "1 แถม 1 OH MY BLUSH DOT #บลัชหัวโต #ohmyblushdot — ภาพปัญหาที่คนเห็นแล้วนึกถึงตัวเอง ใน 2 วินาที",
+      "why": "โครง 8 วินาที: เจอปัญหา → สินค้าเข้ามาแก้ → ชี้ลิงก์ | ระวัง: การแข่งขันในหมวดเครื่องสำอางสูงมาก; อาจมีการเปรียบเทียบสีกับผิวจริงได้ยากผ่านหน้าจอ",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "2dcd88c2-7e27-4d65-a9fd-11bc580d374c",
+        "name": "1 แถม 1 OH MY BLUSH DOT #บลัชหัวโต #ohmyblushdot (16 Colors) 3g.",
+        "category": "Beauty",
+        "price": 254.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztk-mtrm1lr5mgw583"
+      },
+      "style": "problem",
+      "prompt_file": "product_prompts/p007-problem.txt"
+    },
+    {
+      "id": "p008-unboxing",
+      "genre": "สินค้า · แกะกล่อง",
+      "title": "Pramy Moisturizing Makeup Setting Spray Matte — มือแกะกล่อง เสียงกรอบแกรบ",
+      "why": "โครง 8 วินาที: แกะกล่อง → โชว์ตัวสินค้า → ชี้ลิงก์ (ไม่อ้างว่าใช้จริง) | ระวัง: การแข่งขันในหมวดหมู่เครื่องสำอางสูงมาก; สินค้าอาจเกิดการรั่วซึมหรือเสียหายจากการขนส่งได้",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "576d356c-e35c-4d0d-80e4-439659b57888",
+        "name": "Pramy Moisturizing Makeup Setting Spray Matte เซ็ตติ้งสเปรย์ สเปรย์ล็อคเมคอัพ ควบคุมมัน ติดทนยาวนาน 24 ชั่วโมง พรามี่",
+        "category": "Beauty",
+        "price": 249.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztk-mp3hp81t651q5c"
+      },
+      "style": "unboxing",
+      "prompt_file": "product_prompts/p008-unboxing.txt"
+    },
+    {
+      "id": "p009-asmr",
+      "genre": "สินค้า · ASMR",
+      "title": "2POG LIP TINT GIANT ลิปทินท์เบลอแมตต์ ชุ่มชื้น 2 — ภาพใกล้สินค้า + เสียงเฉพาะตัว",
+      "why": "โครง 8 วินาที: ภาพใกล้ + เสียง → โชว์รายละเอียด → ลิงก์ | ระวัง: การแข่งขันในตลาดลิปสติกสูงมาก ต้องสร้างความแตกต่างในคอนเทนต์; สีลิปสติกอาจเพี้ยนตามแสงหน้าจอของผู้ชมแต่ละคน",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "0bc971ba-cbbc-455e-bf8b-a28e59fed5f4",
+        "name": "2POG LIP TINT GIANT ลิปทินท์เบลอแมตต์ ชุ่มชื้น 2 เท่า ติดทน เบลอขอบปากละมุน 15 เฉด (2P ORIGINAL)",
+        "category": "Beauty",
+        "price": 245.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztk-mswzlm4y92pu85"
+      },
+      "style": "asmr",
+      "prompt_file": "product_prompts/p009-asmr.txt"
+    },
+    {
+      "id": "p010-cartoon",
+      "genre": "สินค้า · การ์ตูน/3D",
+      "title": "1 แถม 1 KATHY AMREZ SKIN TINT GLOW ขนาด 5 กรัม — ตัวละครการ์ตูนน่ารักทักก่อน",
+      "why": "โครง 8 วินาที: ตัวละครทัก → ใช้/ชูสินค้า → ชี้ลิงก์ | ระวัง: ต้องระวังเรื่องการเคลมสรรพคุณที่เกินจริงตามกฎของแพลตฟอร์ม; ลูกค้าอาจมีปัญหาเรื่องการใช้ผลิตภัณฑ์ร่วมกับสกินแคร์ตัวอื่นแล้วเป็นคราบ",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "f6686c33-a0d4-45db-80ef-6bf1e3bf5b33",
+        "name": "[1 แถม 1] KATHY AMREZ SKIN TINT GLOW ขนาด 5 กรัม แถมแปรงเทพมินิ",
+        "category": "Beauty",
+        "price": 199.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztl-mrpkskv1sglj4a"
+      },
+      "style": "cartoon",
+      "prompt_file": "product_prompts/p010-cartoon.txt"
+    },
+    {
+      "id": "p011-presenter",
+      "genre": "สินค้า · พรีเซนเตอร์ถือสินค้า",
+      "title": "แถมเคสลิป + พวงกุญแจ | ลิปกลอสฉ่ำวิ้ง CHARMISS — ยิ้มสบตาแล้วชูสินค้าใกล้กล้อง",
+      "why": "โครง 8 วินาที: ทัก → ชูสินค้าให้เห็นชัด → ชี้ลงไปที่ลิงก์ | ระวัง: การแข่งขันในตลาดลิปกลอสสูงมาก; สินค้าอาจขาดสต็อกได้ง่ายหากเป็นรุ่น Limited Edition",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "5283817d-8092-423d-bcf7-9430e15f36ca",
+        "name": "[แถมเคสลิป + พวงกุญแจ] | ลิปกลอสฉ่ำวิ้ง CHARMISS BLOOMING HEART GLITTER LIP GLOSS 3.4 g",
+        "category": "Beauty",
+        "price": 157.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztf-mhp2vt00wyrp09"
+      },
+      "style": "presenter",
+      "prompt_file": "product_prompts/p011-presenter.txt"
+    },
+    {
+      "id": "p012-problem",
+      "genre": "สินค้า · ปัญหา→ทางออก",
+      "title": "Dr.PONG U9.9 RENEWAL CREAM 50g ครีมแก้ผิวแห้งลอก — ภาพปัญหาที่คนเห็นแล้วนึกถึงตัวเอง ใน 2 วินาที",
+      "why": "โครง 8 วินาที: เจอปัญหา → สินค้าเข้ามาแก้ → ชี้ลิงก์ | ระวัง: ผลลัพธ์ขึ้นอยู่กับสภาพผิวแต่ละบุคคล; การแข่งขันในหมวดสกินแคร์สูง",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "12943557-52e2-4ec8-bc5f-42df12f7f70e",
+        "name": "Dr.PONG U9.9 RENEWAL CREAM 50g  ครีมแก้ผิวแห้งลอก ขนคุด ศอกด้าน เข่าด้าน ผิวนุ่มชุ่มชื้น",
+        "category": "Beauty",
+        "price": 139.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztp-mimu8v8js4cif8"
+      },
+      "style": "problem",
+      "prompt_file": "product_prompts/p012-problem.txt"
+    },
+    {
+      "id": "p013-unboxing",
+      "genre": "สินค้า · แกะกล่อง",
+      "title": "Yuedpao Ultrasoft Non-Iron Unisex - Round Neck — มือแกะกล่อง เสียงกรอบแกรบ",
+      "why": "โครง 8 วินาที: แกะกล่อง → โชว์ตัวสินค้า → ชี้ลิงก์ (ไม่อ้างว่าใช้จริง) | ระวัง: ค่าคอมมิชชั่นต่อชิ้นอาจไม่สูงมากเนื่องจากราคาสินค้าต่ำ; การแข่งขันในตลาดเสื้อยืดสูงมาก",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "804a0311-f778-4951-a6a6-2c3a51eaa6c1",
+        "name": "Yuedpao Ultrasoft Non-Iron (Unisex) - Round Neck สี White เสื้อยืดคอกลม สีขาว ผ้านุ่ม ใส่สบาย ไม่ต้องรีด",
+        "category": "Men Clothes",
+        "price": 115.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81zto-mnyjuzfb9j40da"
+      },
+      "style": "unboxing",
+      "prompt_file": "product_prompts/p013-unboxing.txt"
+    },
+    {
+      "id": "p014-asmr",
+      "genre": "สินค้า · ASMR",
+      "title": "Yuedpao Ultrasoft Non-Iron Unisex - Round Neck — ภาพใกล้สินค้า + เสียงเฉพาะตัว",
+      "why": "โครง 8 วินาที: ภาพใกล้ + เสียง → โชว์รายละเอียด → ลิงก์ | ระวัง: ค่าคอมมิชชั่นต่อชิ้นอาจไม่สูงมากเนื่องจากราคาขายต่อหน่วยต่ำ; การแข่งขันในตลาดเสื้อยืดค่อนข้างสูง",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "bb1094c6-4eec-46d5-a271-23302a9182d4",
+        "name": "Yuedpao Ultrasoft Non-Iron (Unisex) - Round Neck สี Black เสื้อยืดคอกลม สีดำ ผ้านุ่ม ใส่สบาย ไม่ต้องรีด",
+        "category": "Men Clothes",
+        "price": 115.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztd-mnyjog5a248y5a"
+      },
+      "style": "asmr",
+      "prompt_file": "product_prompts/p014-asmr.txt"
+    },
+    {
+      "id": "p015-cartoon",
+      "genre": "สินค้า · การ์ตูน/3D",
+      "title": "สูตรผิวมัน - เนื้อบางเบา Beauty Of Joseon RELIEF — ตัวละครการ์ตูนน่ารักทักก่อน",
+      "why": "โครง 8 วินาที: ตัวละครทัก → ใช้/ชูสินค้า → ชี้ลิงก์ | ระวัง: การแข่งขันสูงมากในหมวดสกินแคร์; สินค้าของปลอมระบาดง่าย ต้องเน้นย้ำเรื่องความแท้",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "e9873327-75db-44e2-9597-fb813292dee8",
+        "name": "[ สูตรผิวมัน - เนื้อบางเบา ] Beauty Of Joseon RELIEF SUN AQUA-FRESH RICE+B5 SPF50+ PA++++",
+        "category": "Beauty",
+        "price": 689.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztk-mp8v03jmcetn61"
+      },
+      "style": "cartoon",
+      "prompt_file": "product_prompts/p015-cartoon.txt"
+    },
+    {
+      "id": "p016-presenter",
+      "genre": "สินค้า · พรีเซนเตอร์ถือสินค้า",
+      "title": "Riley.apparels - Andy Jeans — ยิ้มสบตาแล้วชูสินค้าใกล้กล้อง",
+      "why": "โครง 8 วินาที: ทัก → ชูสินค้าให้เห็นชัด → ชี้ลงไปที่ลิงก์ | ระวัง: ความคลาดเคลื่อนของไซส์ในแต่ละสีจากการฟอก; ลูกค้าอาจสับสนเรื่องความหนาของผ้าในแต่ละสี",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "29751521-8a0c-4c3a-b6c1-70c3bcb83dd7",
+        "name": "Riley.apparels - Andy Jeans กางเกงยีนส์กระบอกใหญ่ เก็บเอวพรางหุ่น 7006",
+        "category": "Women Clothes",
+        "price": 690.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-7rash-m3na6zriyqjsec"
+      },
+      "style": "presenter",
+      "prompt_file": "product_prompts/p016-presenter.txt"
+    },
+    {
+      "id": "p017-problem",
+      "genre": "สินค้า · ปัญหา→ทางออก",
+      "title": "MEDIHEAL Pantenolips 10ml 7 Type เมดิฮีล — ภาพปัญหาที่คนเห็นแล้วนึกถึงตัวเอง ใน 2 วินาที",
+      "why": "โครง 8 วินาที: เจอปัญหา → สินค้าเข้ามาแก้ → ชี้ลิงก์ | ระวัง: การแข่งขันในตลาดสูงมาก มีร้านค้าขายเยอะ; กำไรต่อชิ้นอาจไม่สูงมากเนื่องจากราคาขายไม่แพง",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "b4aac83b-7069-4ce2-9253-c3ec007c9e06",
+        "name": "MEDIHEAL Pantenolips 10ml 7 Type เมดิฮีล แพนทีโน่ลิปส์ มีทั้งหมด 7 แบบ",
+        "category": "Beauty",
+        "price": 109.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztl-ms5tm28auw3p16"
+      },
+      "style": "problem",
+      "prompt_file": "product_prompts/p017-problem.txt"
+    },
+    {
+      "id": "p018-unboxing",
+      "genre": "สินค้า · แกะกล่อง",
+      "title": "GQ Everyday Kai Noom กางเกงในไข่นุ่ม ละมุนไข่ — มือแกะกล่อง เสียงกรอบแกรบ",
+      "why": "โครง 8 วินาที: แกะกล่อง → โชว์ตัวสินค้า → ชี้ลิงก์ (ไม่อ้างว่าใช้จริง) | ระวัง: สินค้าไม่สามารถเปลี่ยนหรือคืนได้หากแกะบรรจุภัณฑ์แล้ว; การแข่งขันในหมวดหมู่กางเกงในชายค่อนข้างสูง",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "27679bb2-852a-4da0-b44b-579482f573e5",
+        "name": "GQ Everyday Kai Noom กางเกงในไข่นุ่ม ละมุนไข่",
+        "category": "Men Clothes",
+        "price": 99.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztc-mhrbyos6bn5vaf"
+      },
+      "style": "unboxing",
+      "prompt_file": "product_prompts/p018-unboxing.txt"
+    },
+    {
+      "id": "p019-asmr",
+      "genre": "สินค้า · ASMR",
+      "title": "LUMINEE BEAUTY Bobo Mirror Gloss Cube — ภาพใกล้สินค้า + เสียงเฉพาะตัว",
+      "why": "โครง 8 วินาที: ภาพใกล้ + เสียง → โชว์รายละเอียด → ลิงก์ | ระวัง: การแข่งขันในหมวดเครื่องสำอางสูงมาก ต้องทำคอนเทนต์ให้โดดเด่น; กำไรต่อชิ้นอาจไม่สูงมาก ต้องเน้นปริมาณการขาย (Volume)",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "959b8eac-26fe-4292-9db8-ccd611ce6a2f",
+        "name": "LUMINEE BEAUTY Bobo Mirror Gloss Cube ลิปกลอสกระจก ลิปเจลลี่ฉ่ำวาวดูฉ่ำน้ำ ปากอิ่มฟูสไตล์เกาหลี สีสวยละมุน B230",
+        "category": "Beauty",
+        "price": 56.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztk-mootqnz35bf252"
+      },
+      "style": "asmr",
+      "prompt_file": "product_prompts/p019-asmr.txt"
+    },
+    {
+      "id": "p020-cartoon",
+      "genre": "สินค้า · การ์ตูน/3D",
+      "title": "ลา โรช-โพเซย์ La Roche-Posay CICAPLAST BAUME B5+ — ตัวละครการ์ตูนน่ารักทักก่อน",
+      "why": "โครง 8 วินาที: ตัวละครทัก → ใช้/ชูสินค้า → ชี้ลิงก์ | ระวัง: การแข่งขันในตลาดสูงมาก; ราคาสูงเมื่อเทียบกับครีมบำรุงทั่วไป อาจต้องใช้เวลาตัดสินใจซื้อ",
+      "suggested_length": "8 วินาที",
+      "product": {
+        "id": "3c760c7a-4a20-4a1e-8527-5fd425f06788",
+        "name": "ลา โรช-โพเซย์ La Roche-Posay CICAPLAST BAUME B5+ บาล์มฟื้นบำรุงผิว ช่วยปลอบประโลม ฟื้นบำรุงผิว 100 ml.",
+        "category": "Beauty",
+        "price": 1057.0,
+        "score": 92.0,
+        "image_url": "https://cf.shopee.co.th/file/th-11134207-81ztm-mef8y5c7jugy49"
+      },
+      "style": "cartoon",
+      "prompt_file": "product_prompts/p020-cartoon.txt"
+    }
+  ]
+}

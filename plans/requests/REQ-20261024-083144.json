@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261024-083144",
+  "created": "2026-10-24T08:31:44",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i01",
+      "genre": "นับเลข",
+      "title": "นับเลขคู่ 2 4 6 8 10",
+      "summary": "นับทีละสองด้วยหัวใจสีชมพู",
+      "characters": [
+        "cat",
+        "bunny"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "both",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "gemini_api"
+}

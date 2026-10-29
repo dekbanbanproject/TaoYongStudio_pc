@@ -1,0 +1,153 @@
+{
+  "id": "ep018-find-mixed-colors-around",
+  "title": "สีส้ม สีเขียว สีม่วง อยู่ที่ไหนบ้าง? ตามหาสีผสมรอบตัว",
+  "description": "ตามหาสีที่ได้จากการผสมสีในของรอบตัว แครอทสีส้ม ปลาสีเขียว ดอกไม้สีม่วง พร้อมนับเลข",
+  "tags": [
+    "ผสมสี",
+    "เรียนรู้สี",
+    "การ์ตูนเด็ก",
+    "สีและรูปทรง",
+    "นับเลข"
+  ],
+  "genre": "สีและรูปทรง",
+  "formats": [
+    "horizontal"
+  ],
+  "request_id": "REQ-20261023-110839",
+  "characters": [
+    "bear",
+    "chick"
+  ],
+  "music_seed": 1806,
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bear",
+          "say": "วันนี้ เรามาตามหาสี กันนะ",
+          "action": "wave",
+          "react": "wave"
+        },
+        {
+          "who": "chick",
+          "say": "สีที่ได้ จากการผสมสี",
+          "card": "ส้ม เขียว ม่วง",
+          "action": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "อะไรเอ่ย เป็นสีส้ม?",
+          "card": "",
+          "action": "point"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "chick",
+          "say": "แครอท ไงล่ะ",
+          "card": "สีส้ม",
+          "card_color": "orange",
+          "items": {
+            "kind": "carrot",
+            "count": 1,
+            "color": "orange"
+          },
+          "action": "cheer"
+        },
+        {
+          "who": "bear",
+          "say": "นับแครอทกัน หนึ่ง สอง สาม",
+          "card": "3",
+          "items": {
+            "kind": "carrot",
+            "count": 3,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "แดง ผสม เหลือง ได้ส้ม",
+          "card": "แดง + เหลือง = ส้ม",
+          "card_color": "orange"
+        }
+      ]
+    },
+    {
+      "background": "beach",
+      "beats": [
+        {
+          "who": "bear",
+          "say": "อะไรเอ่ย เป็นสีเขียว?",
+          "card": "",
+          "items": null,
+          "action": "point"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "chick",
+          "say": "ปลาสีเขียว ว่ายน้ำอยู่",
+          "card": "สีเขียว",
+          "card_color": "green",
+          "items": {
+            "kind": "fish",
+            "count": 2,
+            "color": "green"
+          },
+          "action": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "น้ำเงิน ผสม เหลือง ได้เขียว",
+          "card": "น้ำเงิน + เหลือง = เขียว",
+          "card_color": "green"
+        },
+        {
+          "who": "chick",
+          "say": "แล้วอะไรเอ่ย เป็นสีม่วง?",
+          "card": "",
+          "items": null,
+          "action": "point"
+        },
+        {
+          "pause": 1.8
+        },
+        {
+          "who": "bear",
+          "say": "ดอกไม้สีม่วง สวยจัง",
+          "card": "สีม่วง",
+          "card_color": "purple",
+          "items": {
+            "kind": "flower",
+            "count": 4,
+            "color": "purple"
+          },
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "นับดอกไม้กัน หนึ่ง สอง สาม สี่",
+          "card": "4"
+        },
+        {
+          "who": "bear",
+          "say": "แดง ผสม น้ำเงิน ได้ม่วง",
+          "card": "แดง + น้ำเงิน = ม่วง",
+          "card_color": "purple"
+        },
+        {
+          "who": "chick",
+          "say": "เราตามหาสีครบแล้ว เก่งมาก",
+          "card": "",
+          "items": null,
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

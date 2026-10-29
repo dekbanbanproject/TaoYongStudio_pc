@@ -1,0 +1,70 @@
+{
+  "id": "ep008-say-thank-you",
+  "title": "พูดขอบคุณ ไหว้สวัสดี เด็กดีมีมารยาท",
+  "description": "เรียนรู้มารยาทง่ายๆ ไหว้สวัสดี และพูดขอบคุณเมื่อได้รับของ",
+  "tags": [
+    "มารยาท",
+    "ขอบคุณ",
+    "เด็กดี",
+    "การ์ตูนเด็ก"
+  ],
+  "characters": [
+    "bear",
+    "bunny"
+  ],
+  "music_seed": 806,
+  "scenes": [
+    {
+      "background": "meadow",
+      "beats": [
+        {
+          "who": "bunny",
+          "say": "เจอเพื่อน ต้องพูดว่าอะไรนะ?",
+          "action": "point"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "bear",
+          "say": "สวัสดีจ้ะ",
+          "card": "สวัสดี",
+          "action": "wave",
+          "react": "wave"
+        },
+        {
+          "who": "bear",
+          "say": "โกโก้มีดอกไม้มาให้ปุยฝ้าย",
+          "card": "",
+          "items": {
+            "kind": "flower",
+            "count": 1,
+            "color": "pink"
+          },
+          "action": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "ได้รับของ ต้องพูดว่าอะไรนะ?",
+          "action": "point"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "bunny",
+          "say": "ขอบคุณจ้ะ โกโก้",
+          "card": "ขอบคุณ",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "bear",
+          "say": "เก่งมาก เด็กดีมีมารยาท",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

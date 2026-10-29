@@ -1,0 +1,82 @@
+{
+  "id": "ep010-fish-colors",
+  "title": "ปลาสีอะไรเอ่ย? นับปลาที่ทะเลกับมิวมิว",
+  "description": "เรียนรู้สีและฝึกนับปลาหลากสีที่ชายหาด กับแมวมิวมิวและลูกเจี๊ยบ",
+  "tags": [
+    "เรียนรู้สี",
+    "นับเลข",
+    "ปลา",
+    "การ์ตูนเด็ก"
+  ],
+  "characters": [
+    "cat",
+    "chick"
+  ],
+  "music_seed": 1008,
+  "scenes": [
+    {
+      "background": "beach",
+      "beats": [
+        {
+          "who": "cat",
+          "say": "มิวมิวชอบดูปลาที่สุดเลย",
+          "action": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "ปลาตัวนี้ สีส้ม",
+          "card": "สีส้ม",
+          "card_color": "orange",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "orange"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "ปลาตัวนี้ สีม่วง",
+          "card": "สีม่วง",
+          "card_color": "purple",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "purple"
+          }
+        },
+        {
+          "who": "chick",
+          "say": "ปลาตัวนี้ สีชมพู",
+          "card": "สีชมพู",
+          "card_color": "pink",
+          "items": {
+            "kind": "fish",
+            "count": 1,
+            "color": "pink"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "มีปลาสีฟ้า กี่ตัวเอ่ย?",
+          "card": "",
+          "items": {
+            "kind": "fish",
+            "count": 4,
+            "color": "blue"
+          },
+          "action": "point"
+        },
+        {
+          "pause": 2.0
+        },
+        {
+          "who": "chick",
+          "say": "สี่ตัว ถูกต้องแล้ว",
+          "card": "4",
+          "action": "cheer",
+          "react": "cheer"
+        }
+      ]
+    }
+  ]
+}

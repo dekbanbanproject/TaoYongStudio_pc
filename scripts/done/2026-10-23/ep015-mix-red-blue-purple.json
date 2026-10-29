@@ -1,0 +1,159 @@
+{
+  "id": "ep015-mix-red-blue-purple",
+  "title": "ผสมสีมหัศจรรย์ แดง + น้ำเงิน = สีม่วง",
+  "description": "ลองผสมสีแดงกับสีน้ำเงิน จะได้สีอะไร? ดูไปพร้อมกับเจี๊ยบและมิวมิว",
+  "tags": [
+    "ผสมสี",
+    "เรียนรู้สี",
+    "การ์ตูนเด็ก",
+    "สีและรูปทรง",
+    "อนุบาล"
+  ],
+  "genre": "สีและรูปทรง",
+  "formats": [
+    "horizontal"
+  ],
+  "request_id": "REQ-20261023-110839",
+  "characters": [
+    "chick",
+    "cat"
+  ],
+  "music_seed": 1503,
+  "scenes": [
+    {
+      "background": "bedroom",
+      "beats": [
+        {
+          "who": "chick",
+          "say": "สวัสดีจ้ะ เพื่อนๆ",
+          "action": "wave",
+          "react": "wave"
+        },
+        {
+          "who": "cat",
+          "say": "วันนี้ เรามาเล่น ผสมสีกันนะ",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "chick",
+          "say": "เรามีลูกโป่ง แดง",
+          "card": "สีแดง",
+          "card_color": "red",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "red"
+          },
+          "action": "point"
+        },
+        {
+          "who": "cat",
+          "say": "พูดตามนะ สีแดง"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "cat",
+          "say": "แล้วก็มีลูกโป่ง น้ำเงิน",
+          "card": "สีน้ำเงิน",
+          "card_color": "blue",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "blue"
+          },
+          "action": "point"
+        },
+        {
+          "who": "chick",
+          "say": "พูดตามนะ สีน้ำเงิน"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "chick",
+          "say": "ถ้าเอา สีแดง มาผสมกับ สีน้ำเงิน",
+          "card": "แดง + น้ำเงิน",
+          "items": null
+        },
+        {
+          "who": "cat",
+          "say": "จะได้สีอะไรนะ? ลองทายดูสิ",
+          "action": "point"
+        },
+        {
+          "pause": 2.0
+        }
+      ]
+    },
+    {
+      "background": "night",
+      "beats": [
+        {
+          "who": "chick",
+          "say": "หนึ่ง สอง สาม ผสมสี!",
+          "action": "jump",
+          "react": "jump"
+        },
+        {
+          "who": "cat",
+          "say": "ว้าว ได้ สีม่วง",
+          "card": "สีม่วง",
+          "card_color": "purple",
+          "items": {
+            "kind": "balloon",
+            "count": 1,
+            "color": "purple"
+          },
+          "action": "cheer",
+          "react": "cheer"
+        },
+        {
+          "who": "chick",
+          "say": "แดง บวก น้ำเงิน ได้ ม่วง",
+          "card": "แดง + น้ำเงิน = ม่วง",
+          "card_color": "purple"
+        },
+        {
+          "who": "cat",
+          "say": "มีอะไรอีกบ้าง ที่เป็นสีม่วง นะ?",
+          "action": "point"
+        },
+        {
+          "pause": 1.5
+        },
+        {
+          "who": "chick",
+          "say": "ดอกไม้นี้ ก็เป็นสีม่วง",
+          "items": {
+            "kind": "flower",
+            "count": 3,
+            "color": "purple"
+          }
+        },
+        {
+          "who": "cat",
+          "say": "นับกันนะ หนึ่ง สอง สาม",
+          "card": "3"
+        },
+        {
+          "who": "chick",
+          "say": "เก่งมากเลย จำไว้นะ",
+          "card": "แดง + น้ำเงิน = ม่วง",
+          "card_color": "purple",
+          "action": "happy",
+          "react": "happy"
+        },
+        {
+          "who": "cat",
+          "say": "แดง ผสม น้ำเงิน ได้สีม่วง",
+          "action": "dance",
+          "react": "dance"
+        }
+      ]
+    }
+  ]
+}

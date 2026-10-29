@@ -1,0 +1,132 @@
+{
+  "id": "ep024-english-one-to-five",
+  "title": "นับเลขภาษาอังกฤษ One ถึง Five กับโกโก้และมิวมิว",
+  "description": "ฝึกนับเลข 1-5 เป็นภาษาอังกฤษด้วยลูกบอล พร้อมเกมทายท้ายคลิป",
+  "tags": [
+    "ภาษาอังกฤษ",
+    "นับเลข",
+    "English for kids",
+    "การ์ตูนเด็ก"
+  ],
+  "genre": "ภาษาอังกฤษ",
+  "characters": [
+    "bear",
+    "cat"
+  ],
+  "music_seed": 2403,
+  "scenes": [
+    {
+      "background": "classroom",
+      "cast": [
+        "bear",
+        "cat"
+      ],
+      "beats": [
+        {
+          "who": "bear",
+          "say": "Hello! สวัสดีจ้ะ",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "cat",
+          "say": "มานับเลข ภาษาอังกฤษกันนะ",
+          "action": "point"
+        },
+        {
+          "who": "bear",
+          "say": "One",
+          "card": "1 One",
+          "items": {
+            "kind": "ball",
+            "count": 1,
+            "color": "blue"
+          }
+        },
+        {
+          "pause": 1.2
+        },
+        {
+          "who": "cat",
+          "say": "Two",
+          "card": "2 Two",
+          "items": {
+            "kind": "ball",
+            "count": 2,
+            "color": "blue"
+          }
+        },
+        {
+          "pause": 1.2
+        },
+        {
+          "who": "bear",
+          "say": "Three",
+          "card": "3 Three",
+          "items": {
+            "kind": "ball",
+            "count": 3,
+            "color": "blue"
+          }
+        },
+        {
+          "pause": 1.2
+        },
+        {
+          "who": "cat",
+          "say": "Four",
+          "card": "4 Four",
+          "items": {
+            "kind": "ball",
+            "count": 4,
+            "color": "blue"
+          }
+        },
+        {
+          "pause": 1.2
+        },
+        {
+          "who": "bear",
+          "say": "Five",
+          "card": "5 Five",
+          "items": {
+            "kind": "ball",
+            "count": 5,
+            "color": "blue"
+          }
+        },
+        {
+          "pause": 1.2
+        },
+        {
+          "who": "narrator",
+          "say": "ลูกบอลสามลูก ภาษาอังกฤษว่าอะไร",
+          "card": "3",
+          "items": {
+            "kind": "ball",
+            "count": 3,
+            "color": "green"
+          }
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "cat",
+          "say": "Three! เก่งมากจ้ะ",
+          "action": "cheer",
+          "react": "cheer",
+          "card": "3 Three"
+        },
+        {
+          "who": "bear",
+          "say": "Bye bye! เจอกันใหม่นะ",
+          "action": "wave",
+          "react": "wave",
+          "card": "",
+          "items": null
+        }
+      ]
+    }
+  ]
+}

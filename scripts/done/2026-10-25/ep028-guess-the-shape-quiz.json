@@ -1,0 +1,130 @@
+{
+  "id": "ep028-guess-the-shape-quiz",
+  "title": "ทายสิ! รูปทรงอะไรเอ่ย เกมทายรูปทรงสำหรับเด็ก",
+  "description": "เกมทายรูปทรง วงกลม สามเหลี่ยม สี่เหลี่ยม จากคำใบ้ เว้นเวลาให้เด็กๆ ตอบ",
+  "tags": [
+    "เกมทายปัญหา",
+    "รูปทรง",
+    "การ์ตูนเด็ก",
+    "เด็กอนุบาล"
+  ],
+  "genre": "เกมทายปัญหา",
+  "characters": [
+    "chick",
+    "bunny"
+  ],
+  "music_seed": 2807,
+  "scenes": [
+    {
+      "background": "classroom",
+      "cast": [
+        "chick",
+        "bunny"
+      ],
+      "beats": [
+        {
+          "who": "chick",
+          "say": "มาเล่นเกม ทายรูปทรงกัน",
+          "action": "wave",
+          "react": "happy"
+        },
+        {
+          "who": "bunny",
+          "say": "รูปนี้ กลมๆ ไม่มีมุมเลย",
+          "action": "point",
+          "card": "?",
+          "items": {
+            "kind": "circle",
+            "count": 1,
+            "color": "red"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "รูปนี้ คือรูปอะไรเอ่ย"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "chick",
+          "say": "รูปวงกลม จ้ะ",
+          "action": "cheer",
+          "react": "happy",
+          "card": "วงกลม"
+        },
+        {
+          "who": "chick",
+          "say": "รูปนี้ มีสามมุม สามด้าน",
+          "action": "point",
+          "card": "?",
+          "items": {
+            "kind": "triangle",
+            "count": 1,
+            "color": "green"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "รูปนี้ คือรูปอะไรเอ่ย"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "bunny",
+          "say": "รูปสามเหลี่ยม จ้ะ",
+          "action": "cheer",
+          "react": "happy",
+          "card": "สามเหลี่ยม"
+        },
+        {
+          "who": "bunny",
+          "say": "รูปนี้ มีสี่ด้าน ยาวเท่ากัน",
+          "action": "point",
+          "card": "?",
+          "items": {
+            "kind": "square",
+            "count": 1,
+            "color": "blue"
+          }
+        },
+        {
+          "who": "narrator",
+          "say": "รูปนี้ คือรูปอะไรเอ่ย"
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "chick",
+          "say": "รูปสี่เหลี่ยม จ้ะ",
+          "action": "cheer",
+          "react": "happy",
+          "card": "สี่เหลี่ยม"
+        },
+        {
+          "who": "bunny",
+          "say": "ข้อสุดท้าย มีวงกลมกี่อันนะ",
+          "action": "point",
+          "card": "?",
+          "items": {
+            "kind": "circle",
+            "count": 4,
+            "color": "yellow"
+          }
+        },
+        {
+          "pause": 2
+        },
+        {
+          "who": "chick",
+          "say": "สี่อันจ้ะ เก่งที่สุดเลย",
+          "action": "dance",
+          "react": "dance",
+          "card": "4"
+        }
+      ]
+    }
+  ]
+}

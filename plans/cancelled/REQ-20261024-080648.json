@@ -1,0 +1,24 @@
+{
+  "id": "REQ-20261024-080648",
+  "created": "2026-10-24T08:06:48",
+  "status": "pending",
+  "items": [
+    {
+      "id": "i05",
+      "genre": "สีและรูปทรง",
+      "title": "สีรุ้ง 7 สี แดง ส้ม เหลือง เขียว ฟ้า น้ำเงิน ม่วง",
+      "summary": "หัวใจหลากสีเรียงเป็นสายรุ้ง ท่องสีทีละสี",
+      "characters": [
+        "bunny",
+        "chick"
+      ]
+    }
+  ],
+  "custom": "",
+  "length_seconds": 30,
+  "format": "vertical",
+  "count_per_item": 1,
+  "note": "",
+  "provider": "gemini",
+  "delivery": "gemini_api"
+}
